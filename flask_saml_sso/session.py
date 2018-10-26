@@ -14,10 +14,12 @@ def get_session_interface(app):
     config.setdefault('SESSION_KEY_PREFIX', 'session:')
 
     return ModifiedSqlAlchemySessionInterface(
-        app, config['SESSION_SQLALCHEMY'],
+        app,
+        config['SESSION_SQLALCHEMY'],
         config['SESSION_SQLALCHEMY_TABLE'],
-        config['SESSION_KEY_PREFIX'], config['SESSION_USE_SIGNER'],
-        config['SESSION_PERMANENT']
+        config['SESSION_PERMANENT'],
+        config['SESSION_USE_SIGNER'],
+        config['SESSION_KEY_PREFIX']
     )
 
 
@@ -26,6 +28,9 @@ class ModifiedSqlAlchemySessionInterface(sessions.SqlAlchemySessionInterface):
     SqlAlchemySessionInterface with added support for fetching session from
     request header
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def open_session(self, app, request):
         # XXX: Updated to use cookies and headers

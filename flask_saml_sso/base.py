@@ -12,7 +12,7 @@ def init_app(app):
     """
     Perform initial setup of SSO and Session
     """
-    app.config.setdefault('SSO_ENABLE', False)
+    app.config.setdefault('SAML_AUTH_ENABLE', False)
 
     app.session_interface = session.get_session_interface(app)
     # Create the session database table, if it doesn't exist
@@ -23,7 +23,7 @@ def init_app(app):
 def requires_auth(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
-        if flask.current_app.config['SSO_ENABLE']:
+        if flask.current_app.config['SAML_AUTH_ENABLE']:
             check_saml_authentication()
         return f(*args, **kwargs)
     return decorated

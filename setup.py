@@ -25,6 +25,8 @@ setup(
         "python3-saml~=1.4.1",
         "flask~=1.0.2",
         "Flask-Session~=0.3.1",
-        "requests~=2.20.0"
+        "requests~=2.20.0",
+        "Flask-SQLAlchemy~=2.3.2"
+
     ],
 )

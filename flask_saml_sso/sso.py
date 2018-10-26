@@ -260,7 +260,7 @@ def _allow_duplicate_attribute_names():
         return attributes
 
     app = flask.current_app
-    if app.config['SAML_DUPLICATE_ATTRIBUTES']:
+    if app.config.get('SAML_DUPLICATE_ATTRIBUTES'):
         orig_fn = OneLogin_Saml2_Response.get_attributes
         OneLogin_Saml2_Response.get_attributes = _get_attributes_patched
         yield
