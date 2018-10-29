@@ -12,7 +12,9 @@ def init_app(app):
     """
     Perform initial setup of SSO and Session
     """
-    app.config.setdefault('SAML_AUTH_ENABLE', False)
+    enabled = app.config.setdefault('SAML_AUTH_ENABLE', False)
+    if not enabled:
+        return
 
     app.session_interface = session.get_session_interface(app)
     # Create the session database table, if it doesn't exist
