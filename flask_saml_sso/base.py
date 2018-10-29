@@ -30,12 +30,16 @@ def requires_auth(f):
 
 
 def check_saml_authentication():
-    # Check if session cookie is set or if request header is present
-    if not flask.session.get('loggedIn'):
+    # Check if session exists is valid
+    if not flask.session.get(sso.LOGGED_IN):
         raise exceptions.Unauthorized
 
 
 def get_session_id():
+    """
+    Fetch session_id from either cookie or request header, whichever has been
+    set
+    """
     session_key = flask.current_app.session_cookie_name
 
     if flask.request.headers.get(session_key):

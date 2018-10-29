@@ -26,7 +26,12 @@ setup(
         "flask~=1.0.2",
         "Flask-Session~=0.3.1",
         "requests~=2.20.0",
-        "Flask-SQLAlchemy~=2.3.2"
+        "Flask-SQLAlchemy~=2.3.2",
+        "itsdangerous<1.0.0"
 
     ],
+    tests_require=[
+        'Flask-Testing',
+        'freezegun',
+    ]
 )

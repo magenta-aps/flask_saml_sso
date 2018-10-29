@@ -17,10 +17,19 @@ from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from onelogin.saml2.response import OneLogin_Saml2_Response
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
 
+LOGGED_IN = 'loggedIn'
+SAML_SESSION_INDEX = 'samlSessionIndex'
+SAML_NAME_ID = 'samlNameId'
+SAML_USERDATA = 'samlUserdata'
+
 basedir = os.path.dirname(__file__)
 
 blueprint = flask.Blueprint('sso', __name__, static_url_path='',
                             url_prefix='/saml')
+
+
+def _build_error_response(message):
+    return flask.jsonify(message), 401
 
 
 def _get_saml_settings(app):
@@ -32,7 +41,7 @@ def _get_saml_settings(app):
     key_file = config.setdefault('SAML_KEY_FILE', None)
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
-    saml_idp_metadata_url = config['SAML_IDP_METADATA_URL']
+    saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
 
     if saml_idp_metadata_file:
         with open(saml_idp_metadata_file, 'r') as idp:
@@ -122,7 +131,7 @@ def metadata(auth):
     errors = settings.validate_metadata(sp_metadata)
 
     if errors:
-        raise Exception(", ".join(errors))
+        return _build_error_response(errors)
     resp = flask.make_response(sp_metadata, 200)
     resp.headers['Content-Type'] = 'text/xml'
     return resp
@@ -137,7 +146,7 @@ def sso(auth):
     Redirects user to IdP login page specified in metadata
     """
     return_to = flask.request.args.get(
-        'next', flask.url_for('root', _external=True))
+        'next', flask.request.host_url)
     login = auth.login(return_to=return_to)
     return flask.redirect(login)
 
@@ -155,15 +164,15 @@ def acs(auth):
     errors = auth.get_errors()
 
     if errors:
-        raise Exception(", ".join(errors))
+        return _build_error_response(errors)
 
     # token_lifetime = flask.current_app.config['SAML_TOKEN_LIFETIME']
     # token_expiry = datetime.datetime.now().timestamp() + token_lifetime
 
-    flask.session['samlUserdata'] = auth.get_attributes()
-    flask.session['samlNameId'] = auth.get_nameid()
-    flask.session['samlSessionIndex'] = auth.get_session_index()
-    flask.session['loggedIn'] = True
+    flask.session[SAML_USERDATA] = auth.get_attributes()
+    flask.session[SAML_NAME_ID] = auth.get_nameid()
+    flask.session[SAML_SESSION_INDEX] = auth.get_session_index()
+    flask.session[LOGGED_IN] = True
     # flask.session['samlSessionExpiry'] = token_expiry
 
     if 'RelayState' in flask.request.form:
@@ -200,7 +209,7 @@ def sls(auth):
     url = auth.process_slo(delete_session_cb=lambda: flask.session.clear())
     errors = auth.get_errors()
     if errors:
-        raise Exception(", ".join(errors))
+        return _build_error_response(errors)
     if url is not None:
         return flask.redirect(url)
     return flask.redirect('/')
