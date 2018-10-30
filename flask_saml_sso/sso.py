@@ -20,7 +20,7 @@ from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
 LOGGED_IN = 'loggedIn'
 SAML_SESSION_INDEX = 'samlSessionIndex'
 SAML_NAME_ID = 'samlNameId'
-SAML_USERDATA = 'samlUserdata'
+SAML_ATTRIBUTES = 'samlAttributes'
 
 basedir = os.path.dirname(__file__)
 
@@ -169,11 +169,10 @@ def acs(auth):
     # token_lifetime = flask.current_app.config['SAML_TOKEN_LIFETIME']
     # token_expiry = datetime.datetime.now().timestamp() + token_lifetime
 
-    flask.session[SAML_USERDATA] = auth.get_attributes()
+    flask.session[SAML_ATTRIBUTES] = auth.get_attributes()
     flask.session[SAML_NAME_ID] = auth.get_nameid()
     flask.session[SAML_SESSION_INDEX] = auth.get_session_index()
     flask.session[LOGGED_IN] = True
-    # flask.session['samlSessionExpiry'] = token_expiry
 
     if 'RelayState' in flask.request.form:
         return flask.redirect(auth.redirect_to(

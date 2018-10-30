@@ -29,13 +29,18 @@ class ModifiedSqlAlchemySessionInterface(sessions.SqlAlchemySessionInterface):
     request header
     """
 
+    def _get_sid(self, app, request):
+        # Fetch session ID from either header, or cookie
+        if request.cookies.get(app.session_cookie_name):
+            return request.cookies.get(app.session_cookie_name)
+        elif request.headers.get(app.session_cookie_name):
+            return request.headers.get(app.session_cookie_name)
+        else:
+            return None
+
     def open_session(self, app, request):
         # XXX: Updated to use cookies and headers
-        sid = None
-        if request.cookies.get(app.session_cookie_name):
-            sid = request.cookies.get(app.session_cookie_name)
-        elif request.headers.get(app.session_cookie_name):
-            sid = request.headers.get(app.session_cookie_name)
+        sid = self._get_sid(app, request)
         if not sid:
             sid = self._generate_sid()
             return self.session_class(sid=sid, permanent=self.permanent)
