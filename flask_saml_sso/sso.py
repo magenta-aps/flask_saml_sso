@@ -212,7 +212,7 @@ def sls(auth):
 
 
 @contextlib.contextmanager
-def _allow_duplicate_attribute_names():
+def _allow_duplicate_attribute_names():  # pragma: no cover
     """
     Patches get_attributes on OneLogin Response object to handle duplicate
     attribute names

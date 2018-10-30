@@ -38,7 +38,7 @@ class ModifiedSqlAlchemySessionInterface(sessions.SqlAlchemySessionInterface):
         else:
             return None
 
-    def open_session(self, app, request):
+    def open_session(self, app, request):  # pragma: no cover
         # XXX: Updated to use cookies and headers
         sid = self._get_sid(app, request)
         if not sid:
