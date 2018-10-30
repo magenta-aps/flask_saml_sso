@@ -25,7 +25,7 @@ class TestSSO(TestCase):
     def create_app(self):
         app = flask.Flask(__name__)
 
-        app.config['AUTH'] = True
+        app.config['SAML_AUTH_ENABLE'] = True
         app.config['SAML_IDP_METADATA_FILE'] = TESTS_DIR + '/sso/idp.xml'
         app.config['SERVER_NAME'] = "127.0.0.1:5000"
 
@@ -104,7 +104,7 @@ class TestSSO(TestCase):
         samlSessionIndex = '_6a54ed11e21b64af1a0380b1fba3ec575b05855465'
 
         with self.client.session_transaction() as sess:
-            self.assertEqual(samlUserData, sess.get('samlUserdata'))
+            self.assertEqual(samlUserData, sess.get('samlAttributes'))
             self.assertEqual(samlNameId, sess.get('samlNameId'))
             self.assertEqual(samlSessionIndex, sess.get('samlSessionIndex'))
 
