@@ -13,7 +13,7 @@ def get_session_interface(app):
     config.setdefault('SESSION_USE_SIGNER', False)
     config.setdefault('SESSION_KEY_PREFIX', 'session:')
 
-    return ModifiedSqlAlchemySessionInterface(
+    return SqlAlchemySessionInterfaceWithHeaders(
         app,
         config['SESSION_SQLALCHEMY'],
         config['SESSION_SQLALCHEMY_TABLE'],
@@ -23,7 +23,8 @@ def get_session_interface(app):
     )
 
 
-class ModifiedSqlAlchemySessionInterface(sessions.SqlAlchemySessionInterface):
+class SqlAlchemySessionInterfaceWithHeaders(
+        sessions.SqlAlchemySessionInterface):
     """
     SqlAlchemySessionInterface with added support for fetching session from
     request header
