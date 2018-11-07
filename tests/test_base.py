@@ -48,7 +48,7 @@ class TestBase(TestCase):
             flask_saml_sso.check_saml_authentication()
 
     def test_check_saml_authentication_does_not_raise_on_valid_session(self):
-        flask.session[flask_saml_sso.sso.LOGGED_IN] = True
+        flask.session[flask_saml_sso.session.LOGGED_IN] = True
 
         # No exceptions should be raised
         flask_saml_sso.check_saml_authentication()
@@ -87,7 +87,7 @@ class TestBase(TestCase):
     def test_get_session_attributes(self):
         expected_attributes = {'whatever': '1234'}
 
-        flask.session[flask_saml_sso.sso.SAML_ATTRIBUTES] = expected_attributes
+        flask.session[flask_saml_sso.session.SAML_ATTRIBUTES] = expected_attributes
 
         actual_attributes = flask_saml_sso.get_session_attributes()
 

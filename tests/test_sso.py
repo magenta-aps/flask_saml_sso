@@ -16,6 +16,7 @@ from flask_testing import TestCase
 from onelogin.saml2.utils import OneLogin_Saml2_Utils as saml_utils
 
 import flask_saml_sso
+from flask_saml_sso import session
 
 TESTS_DIR = os.path.dirname(__file__)
 
@@ -122,6 +123,10 @@ class TestSSO(TestCase):
         self.assertEqual(expected, r.json)
 
     def test_slo_redirects_to_logout_page(self):
+        with self.client.session_transaction() as sess:
+            sess[flask_saml_sso.session.SAML_SESSION_INDEX] = '1234'
+            sess[flask_saml_sso.session.SAML_NAME_ID] = '1234'
+
         r = self.client.get('/saml/slo/')
         url = urlparse(r.location)
 
@@ -146,12 +151,12 @@ class TestSSO(TestCase):
         }
 
         with self.client.session_transaction() as sess:
-            sess[flask_saml_sso.sso.LOGGED_IN] = True
+            sess[flask_saml_sso.session.LOGGED_IN] = True
 
         r = self.client.get('/saml/sls/', query_string=urlencode(data))
 
         with self.client.session_transaction() as sess:
-            self.assertFalse(sess.get(flask_saml_sso.sso.LOGGED_IN))
+            self.assertFalse(sess.get(flask_saml_sso.session.LOGGED_IN))
 
     @patch('onelogin.saml2.auth.OneLogin_Saml2_Auth.get_errors',
            lambda *x, **y: ['ERROR 2'])
@@ -192,3 +197,7 @@ class TestSSO(TestCase):
 
         self.assertEqual(401, r.status_code)
         self.assertEqual(expected, r.json)
+
+    def test_api_token(self):
+        r = self.client.get('/saml/api_token/')
+        print(r)

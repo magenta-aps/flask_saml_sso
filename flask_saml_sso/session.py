@@ -1,7 +1,30 @@
+import enum
 from datetime import datetime
+from datetime import timedelta
 
+import flask
 from flask_session import sessions
 from itsdangerous import BadSignature, want_bytes
+
+LOGGED_IN = 'loggedIn'
+SAML_SESSION_INDEX = 'samlSessionIndex'
+SAML_NAME_ID = 'samlNameId'
+SAML_ATTRIBUTES = 'samlAttributes'
+SAML_SESSION_TYPE = 'samlSessionType'
+
+
+class SessionType(enum.Enum):
+    User = 1
+    Service = 2
+
+
+def create_session_dict(session_type: SessionType,
+                        attributes: dict):
+    return {
+        SAML_SESSION_TYPE: session_type,
+        SAML_ATTRIBUTES: attributes,
+        LOGGED_IN: True,
+    }
 
 
 def get_session_interface(app):
@@ -27,8 +50,50 @@ class SqlAlchemySessionInterfaceWithHeaders(
         sessions.SqlAlchemySessionInterface):
     """
     SqlAlchemySessionInterface with added support for fetching session from
-    request header
+    request header, as well as support for inserting additional sessions aside
+    from the one currently active
     """
+
+    def insert_new_session(self, session_dict):
+        """
+        Insert a new session in the session store, outside of the
+        currently active session
+        """
+        app = flask.current_app
+
+        sid = self._generate_sid()
+        store_id = self.key_prefix + sid
+        expires = self.get_session_expiration_time_by_type(
+            app, SessionType.Service)
+
+        session_obj = self.session_class(session_dict, sid=sid,
+                                         permanent=True)
+
+        new_session = self.sql_session_model(
+            store_id,
+            self.serializer.dumps(dict(session_obj)),
+            expires
+        )
+
+        self.db.session.add(new_session)
+
+        return sid
+
+    def get_session_expiration_time_by_type(self, app,
+                                            session_type: SessionType):
+        if session_type == SessionType.Service:
+            lifetime_seconds = app.config.get(
+                'SAML_SERVICE_SESSION_LIFETIME', 2592000)
+            return datetime.utcnow() + timedelta(seconds=lifetime_seconds)
+        else:
+            return datetime.utcnow() + app.permanent_session_lifetime
+
+    def get_expiration_time(self, app, session):
+        if session.permanent:
+            return self.get_session_expiration_time_by_type(
+                app,
+                session.get(SAML_SESSION_TYPE)
+            )
 
     def _get_sid(self, app, request):
         # Fetch session ID from either header, or cookie
