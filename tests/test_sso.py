@@ -16,7 +16,6 @@ from flask_testing import TestCase
 from onelogin.saml2.utils import OneLogin_Saml2_Utils as saml_utils
 
 import flask_saml_sso
-from flask_saml_sso import session
 
 TESTS_DIR = os.path.dirname(__file__)
 
@@ -198,6 +197,31 @@ class TestSSO(TestCase):
         self.assertEqual(401, r.status_code)
         self.assertEqual(expected, r.json)
 
-    def test_api_token(self):
+    def test_api_token_redirects_on_invalid_session(self):
         r = self.client.get('/saml/api_token/')
-        print(r)
+
+        self.assertEqual(302, r.status_code)
+
+    def test_api_token(self):
+        """Assert that an API token is created corresponding to a Service
+        session with the same attributes as the creating session"""
+        attributes = {'whatever': 1234}
+
+        with self.client.session_transaction() as sess:
+            sess[flask_saml_sso.session.LOGGED_IN] = True
+            sess[flask_saml_sso.session.SAML_ATTRIBUTES] = attributes
+
+        r = self.client.get('/saml/api_token/')
+        self.assertEqual(200, r.status_code)
+
+        expected_api_session = {
+            flask_saml_sso.session.SAML_ATTRIBUTES: attributes,
+            flask_saml_sso.session.SAML_SESSION_TYPE:
+                flask_saml_sso.session.SessionType.Service,
+            flask_saml_sso.session.LOGGED_IN: True,
+            '_permanent': True
+        }
+
+        with self.app.test_request_context('/saml/metadata/',
+                                           headers={'session': r.json}):
+            self.assertEqual(expected_api_session, flask.session)
