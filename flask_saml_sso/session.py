@@ -83,7 +83,7 @@ class SqlAlchemySessionInterfaceWithHeaders(
                                             session_type: SessionType):
         if session_type == SessionType.Service:
             lifetime_seconds = app.config.get(
-                'SAML_SERVICE_SESSION_LIFETIME', 2592000)
+                'SAML_SERVICE_SESSION_LIFETIME', 2678400)
             return datetime.utcnow() + timedelta(seconds=lifetime_seconds)
         else:
             return datetime.utcnow() + app.permanent_session_lifetime

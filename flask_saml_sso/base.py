@@ -12,7 +12,7 @@ def init_app(app):
     """
     Perform initial setup of SSO and Session
     """
-    enabled = app.config.setdefault('SAML_AUTH_ENABLE', False)
+    enabled = app.config.setdefault('SAML_AUTH_ENABLE', True)
     if not enabled:
         return
 
