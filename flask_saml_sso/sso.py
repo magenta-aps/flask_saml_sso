@@ -115,7 +115,7 @@ def _prepare_saml_auth(func):
     return wrapper
 
 
-@blueprint.route('/api_token/')
+@blueprint.route('/api-token/')
 def api_token():
     """
     Create a new Service user session with associated API token based on

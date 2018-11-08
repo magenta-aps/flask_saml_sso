@@ -198,7 +198,7 @@ class TestSSO(TestCase):
         self.assertEqual(expected, r.json)
 
     def test_api_token_redirects_on_invalid_session(self):
-        r = self.client.get('/saml/api_token/')
+        r = self.client.get('/saml/api-token/')
 
         self.assertEqual(302, r.status_code)
 
@@ -211,7 +211,7 @@ class TestSSO(TestCase):
             sess[flask_saml_sso.session.LOGGED_IN] = True
             sess[flask_saml_sso.session.SAML_ATTRIBUTES] = attributes
 
-        r = self.client.get('/saml/api_token/')
+        r = self.client.get('/saml/api-token/')
         self.assertEqual(200, r.status_code)
 
         expected_api_session = {
