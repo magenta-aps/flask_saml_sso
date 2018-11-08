@@ -16,6 +16,7 @@ from onelogin.saml2.constants import OneLogin_Saml2_Constants
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from onelogin.saml2.response import OneLogin_Saml2_Response
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
+from werkzeug import exceptions
 
 from . import session
 
@@ -130,6 +131,17 @@ def api_token():
         redirect = flask.redirect("{}?{}".format(
             flask.url_for('sso.sso'), qargs))
         return redirect
+
+    app = flask.current_app
+    # Check if user is permitted to create API tokens
+
+    if app.config.get('SAML_API_TOKEN_RESTRICT', False):
+        group = app.config['SAML_API_TOKEN_RESTRICT_ATTR']
+        value = app.config['SAML_API_TOKEN_RESTRICT_VALUE']
+
+        attrs = flask.session.get(session.SAML_ATTRIBUTES)
+        if not attrs.get(group) or value not in attrs.get(group):
+            raise exceptions.Forbidden
 
     session_dict = session.create_session_dict(
         session.SessionType.Service,

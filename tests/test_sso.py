@@ -225,3 +225,35 @@ class TestSSO(TestCase):
         with self.app.test_request_context('/saml/metadata/',
                                            headers={'session': r.json}):
             self.assertEqual(expected_api_session, flask.session)
+
+    def test_api_token_with_restriction(self):
+        """Assert that api token creation returns 200 when restriction is
+        enabled and sufficient permissions are available"""
+        self.app.config['SAML_API_TOKEN_RESTRICT'] = True
+        self.app.config['SAML_API_TOKEN_RESTRICT_ATTR'] = 'roles'
+        self.app.config['SAML_API_TOKEN_RESTRICT_VALUE'] = 'allowed'
+
+        attributes = {'roles': ['allowed']}
+
+        with self.client.session_transaction() as sess:
+            sess[flask_saml_sso.session.LOGGED_IN] = True
+            sess[flask_saml_sso.session.SAML_ATTRIBUTES] = attributes
+
+        r = self.client.get('/saml/api-token/')
+        self.assertEqual(200, r.status_code)
+
+    def test_api_token_returns_403_on_restricted_access(self):
+        """Assert that api token creation returns 403 when restriction is
+        enabled and unsufficient permissions are available"""
+        self.app.config['SAML_API_TOKEN_RESTRICT'] = True
+        self.app.config['SAML_API_TOKEN_RESTRICT_ATTR'] = 'asd'
+        self.app.config['SAML_API_TOKEN_RESTRICT_VALUE'] = 'asd'
+
+        attributes = {'whatever': 1234}
+
+        with self.client.session_transaction() as sess:
+            sess[flask_saml_sso.session.LOGGED_IN] = True
+            sess[flask_saml_sso.session.SAML_ATTRIBUTES] = attributes
+
+        r = self.client.get('/saml/api-token/')
+        self.assertEqual(403, r.status_code)
