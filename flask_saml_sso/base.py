@@ -12,7 +12,7 @@ def init_app(app):
     """
     Perform initial setup of SSO and Session
     """
-    enabled = app.config.setdefault('SAML_AUTH_ENABLE', False)
+    enabled = app.config.setdefault('SAML_AUTH_ENABLE', True)
     if not enabled:
         return
 
@@ -40,7 +40,7 @@ def check_saml_authentication():
     """
     # Check if session exists is valid
     if flask.current_app.config['SAML_AUTH_ENABLE'] and not flask.session.get(
-            sso.LOGGED_IN):
+            session.LOGGED_IN):
         raise exceptions.Unauthorized
 
 
@@ -62,7 +62,7 @@ def get_session_attributes():
     """
     Helper function for easy access to the attributes stored in the session
     """
-    return flask.session.get(sso.SAML_ATTRIBUTES)
+    return flask.session.get(session.SAML_ATTRIBUTES)
 
 
 class SAMLAuth(requests.auth.AuthBase):

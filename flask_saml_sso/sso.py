@@ -16,11 +16,9 @@ from onelogin.saml2.constants import OneLogin_Saml2_Constants
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from onelogin.saml2.response import OneLogin_Saml2_Response
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
+from werkzeug import exceptions
 
-LOGGED_IN = 'loggedIn'
-SAML_SESSION_INDEX = 'samlSessionIndex'
-SAML_NAME_ID = 'samlNameId'
-SAML_ATTRIBUTES = 'samlAttributes'
+from . import session
 
 basedir = os.path.dirname(__file__)
 
@@ -118,6 +116,42 @@ def _prepare_saml_auth(func):
     return wrapper
 
 
+@blueprint.route('/api-token/')
+def api_token():
+    """
+    Create a new Service user session with associated API token based on
+    the rights of the current logged in user.
+
+    If no user is currently logged in, redirect to SSO flow and return here
+    """
+    if not flask.session.get(session.LOGGED_IN):
+        qargs = parse.urlencode({
+            'next': flask.url_for('sso.api_token')
+        })
+        redirect = flask.redirect("{}?{}".format(
+            flask.url_for('sso.sso'), qargs))
+        return redirect
+
+    app = flask.current_app
+    # Check if user is permitted to create API tokens
+
+    if app.config.get('SAML_API_TOKEN_RESTRICT', False):
+        group = app.config['SAML_API_TOKEN_RESTRICT_ATTR']
+        value = app.config['SAML_API_TOKEN_RESTRICT_VALUE']
+
+        attrs = flask.session.get(session.SAML_ATTRIBUTES)
+        if not attrs.get(group) or value not in attrs.get(group):
+            raise exceptions.Forbidden
+
+    session_dict = session.create_session_dict(
+        session.SessionType.Service,
+        flask.session.get(session.SAML_ATTRIBUTES)
+    )
+    sid = flask.current_app.session_interface.insert_new_session(session_dict)
+
+    return flask.jsonify(sid)
+
+
 @blueprint.route('/metadata/')
 @_prepare_saml_auth
 def metadata(auth):
@@ -166,10 +200,13 @@ def acs(auth):
     if errors:
         return _build_error_response(errors)
 
-    flask.session[SAML_ATTRIBUTES] = auth.get_attributes()
-    flask.session[SAML_NAME_ID] = auth.get_nameid()
-    flask.session[SAML_SESSION_INDEX] = auth.get_session_index()
-    flask.session[LOGGED_IN] = True
+    flask.session.update(session.create_session_dict(
+        session.SessionType.User,
+        auth.get_attributes()
+    ))
+    # Set SSO specific IdP metadata
+    flask.session[session.SAML_NAME_ID] = auth.get_nameid()
+    flask.session[session.SAML_SESSION_INDEX] = auth.get_session_index()
 
     if 'RelayState' in flask.request.form:
         return flask.redirect(auth.redirect_to(
@@ -187,10 +224,15 @@ def slo(auth):
 
     Redirects user to IdP SLO specified in metadata
     """
-    name_id = flask.session.get('samlNameId')
-    session_index = flask.session.get('samlSessionIndex')
-    logout = auth.logout(name_id=name_id, session_index=session_index)
-    return flask.redirect(logout)
+    name_id = flask.session.get(session.SAML_NAME_ID)
+    session_index = flask.session.get(session.SAML_SESSION_INDEX)
+    # If session originates from IdP
+    if name_id and session_index:
+        logout = auth.logout(name_id=name_id, session_index=session_index)
+        return flask.redirect(logout)
+    else:
+        flask.session.clear()
+        return flask.redirect('/')
 
 
 @blueprint.route('/sls/')
