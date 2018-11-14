@@ -75,9 +75,10 @@ class SAMLAuth(requests.auth.AuthBase):
         self.session_id = session_id
 
     def __call__(self, r):
+        session_id = None
         if self.session_id:
             session_id = self.session_id
-        else:
+        elif flask.request:
             session_id = get_session_id()
         if session_id:
             session_key = flask.current_app.session_cookie_name
