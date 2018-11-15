@@ -97,10 +97,10 @@ class SqlAlchemySessionInterfaceWithHeaders(
 
     def _get_sid(self, app, request):
         # Fetch session ID from either header, or cookie
-        if request.cookies.get(app.session_cookie_name):
-            return request.cookies.get(app.session_cookie_name)
-        elif request.headers.get(app.session_cookie_name):
+        if request.headers.get(app.session_cookie_name):
             return request.headers.get(app.session_cookie_name)
+        elif request.cookies.get(app.session_cookie_name):
+            return request.cookies.get(app.session_cookie_name)
         else:
             return None
 
