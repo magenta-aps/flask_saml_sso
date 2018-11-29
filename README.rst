@@ -7,7 +7,9 @@ SAML single sign-on with a shared SQL session store.
 Usage
 -----
 
-The auth module is imported and added to the Flask app with the following::
+The auth module is imported and added to the Flask app with the following.
+
+.. code-block:: python
 
     import flask_saml_sso
     flask_saml_sso.init_app(app)
