@@ -4,6 +4,74 @@ Flask SAML SSO
 This package contains a Flask blueprint and session mechanisms for handling
 SAML single sign-on with a shared SQL session store.
 
+Usage
+-----
+
+The auth module is imported and added to the Flask app with the following.
+
+.. code-block:: python
+
+    import flask_saml_sso
+    flask_saml_sso.init_app(app)
+
+This registers the blueprint, adding all the relevant endpoints, as well as
+initializing the session backend.
+
+Single sign-on and logout
+^^^^^^^^^^^^^^^^^^^^^^^^^
+We support SAML 2.0 Web-based SSO for login and logout. Currently, we support
+the HTTP-POST binding for login, and HTTP-Redirect for logout.
+
+For login and logout, redirect the user to either ``/saml/sso`` or
+``/saml/slo`` respectively. Once a user successfully logs in, a session is
+created in the session store with the user attributes given to us by the IdP.
+The session ID is then attached to the response as a cookie.
+Each session has an expiry, which is refreshed whenever the session is accessed.
+
+As an alternative to cookies, the session ID can also be supplied as a header,
+with the same name as the cookie. The header will be checked first,
+over the cookie.
+
+========================    ==================================================
+Endpoint                    Description
+========================    ==================================================
+``/saml/metadata``          The XML SP metadata for the application. Used for
+                            configuring the application as a Service Provider
+                            with the IdP
+``/saml/sso``               Initiate single sign-on flow, redirecting the user
+                            to the IdP login page
+``/saml/acs``               Assertion Consumer Service, used for handling login
+                            responses from IdP
+``/saml/slo``               Initiate single logout. Redirects to IdP page for
+                            logout. Logs user out of both our own and the
+                            IdP's session
+``/saml/sls``               Single Logout Service, used for handling logout
+                            responses from IdP
+========================    ==================================================
+
+API tokens
+^^^^^^^^^^
+
+It is possible to generate API tokens, with corresponding sessions that have a
+much longer expiry than normal sessions.
+
+The API token is created based on the current user's SAML attributes.
+Furthermore, creation of API tokens can be restricted to users with
+certain attributes with the configuration entries,
+``SAML_API_TOKEN_RESTRICT``, ``SAML_API_TOKEN_RESTRICT_ATTR``
+and ``SAML_API_TOKEN_RESTRICT_VALUE``.
+
+The API token is used similarly to normal session ID and can be attached as a
+header in the same fashion.
+
+========================    ==================================================
+Endpoint                    Description
+========================    ==================================================
+``/saml/api-token``         Generate an API token. User creating token
+                            must be logged in.
+========================    ==================================================
+
+
 Configuration
 -------------
 
@@ -46,4 +114,3 @@ Config key                          Default             Description
                                                         which gives a user the permission to create
                                                         API tokens
 ==================================  ==================  ============================================
-
