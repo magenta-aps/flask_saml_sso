@@ -11,7 +11,7 @@ from setuptools import find_packages
 
 setup(
     name='flask_saml_sso',
-    version='0.2.0',
+    version='0.2.1',
     description='',
     author='Magenta ApS',
     author_email='info@magenta.dk',
@@ -22,12 +22,12 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        "python3-saml~=1.4.1",
-        "flask~=1.0.2",
-        "Flask-Session~=0.3.1",
-        "requests~=2.20.0",
-        "Flask-SQLAlchemy~=2.3.2",
-        "itsdangerous<1.0.0"
+        "python3-saml>=1.4",
+        "flask>=1.0",
+        "Flask-Session>=0.3",
+        "requests>=2.19",
+        "Flask-SQLAlchemy>=2.3",
+        "itsdangerous>=1.1"
 
     ],
     tests_require=[
