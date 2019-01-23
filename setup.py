@@ -22,12 +22,12 @@ setup(
     },
     zip_safe=False,
     install_requires=[
-        "python3-saml~=1.4.1",
-        "flask~=1.0.2",
-        "Flask-Session~=0.3.1",
-        "requests~=2.20.0",
-        "Flask-SQLAlchemy~=2.3.2",
-        "itsdangerous<1.0.0"
+        "python3-saml>=1.4",
+        "flask>=1.0",
+        "Flask-Session>=0.3",
+        "requests>=2.19",
+        "Flask-SQLAlchemy>=2.3",
+        "itsdangerous>=1.1"
 
     ],
     tests_require=[
