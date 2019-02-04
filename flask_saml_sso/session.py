@@ -1,4 +1,6 @@
 import enum
+import logging
+
 from datetime import datetime
 from datetime import timedelta
 
@@ -12,6 +14,8 @@ SAML_NAME_ID = 'samlNameId'
 SAML_ATTRIBUTES = 'samlAttributes'
 SAML_SESSION_TYPE = 'samlSessionType'
 
+logger = logging.getLogger(__name__)
+
 
 class SessionType(enum.Enum):
     User = 1
@@ -20,11 +24,14 @@ class SessionType(enum.Enum):
 
 def create_session_dict(session_type: SessionType,
                         attributes: dict):
-    return {
+    session_dict = {
         SAML_SESSION_TYPE: session_type,
         SAML_ATTRIBUTES: attributes,
         LOGGED_IN: True,
     }
+    logger.info('Creating session: {}'.format(session_dict))
+
+    return session_dict
 
 
 def get_session_interface(app):

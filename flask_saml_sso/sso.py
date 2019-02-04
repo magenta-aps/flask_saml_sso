@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import contextlib
+import logging
 import os
 from urllib import parse
 
@@ -24,6 +25,8 @@ basedir = os.path.dirname(__file__)
 
 blueprint = flask.Blueprint('sso', __name__, static_url_path='',
                             url_prefix='/saml')
+
+logger = logging.getLogger(__name__)
 
 
 def _build_error_response(message):
@@ -74,8 +77,13 @@ def _get_saml_settings(app):
     s.setdefault('idp', {}).update(remote.get('idp'))
 
     if requests_signed:
+        if not os.path.isfile(cert_file):
+            logger.error('Unable to read cert file {}'.format(cert_file))
         with open(cert_file, 'r') as cf:
             cert = cf.read()
+
+        if not os.path.isfile(key_file):
+            logger.error('Unable to read key file {}'.format(key_file))
         with open(key_file, 'r') as kf:
             key = kf.read()
 
@@ -83,6 +91,8 @@ def _get_saml_settings(app):
             "x509cert": cert,
             "privateKey": key
         })
+
+    logger.debug('SAML Settings: {}'.format(s))
 
     return s
 
@@ -124,23 +134,36 @@ def api_token():
 
     If no user is currently logged in, redirect to SSO flow and return here
     """
+    logger.info('API-token called')
+
     if not flask.session.get(session.LOGGED_IN):
         qargs = parse.urlencode({
             'next': flask.url_for('sso.api_token')
         })
-        redirect = flask.redirect("{}?{}".format(
-            flask.url_for('sso.sso'), qargs))
-        return redirect
+        redirect_url = "{}?{}".format(flask.url_for('sso.sso'), qargs)
+
+        logger.info('API-token - User not logged in, redirecting to {}'.format(
+            redirect_url))
+        return flask.redirect(redirect_url)
 
     app = flask.current_app
     # Check if user is permitted to create API tokens
 
     if app.config.get('SAML_API_TOKEN_RESTRICT', False):
+        logger.info('API-token - Token restriction enabled')
+
         group = app.config['SAML_API_TOKEN_RESTRICT_ATTR']
         value = app.config['SAML_API_TOKEN_RESTRICT_VALUE']
-
         attrs = flask.session.get(session.SAML_ATTRIBUTES)
+
+        logger.debug(
+            'API-token - SAML_API_TOKEN_RESTRICT_ATTR: {}'.format(group))
+        logger.debug(
+            'API-token - SAML_API_TOKEN_RESTRICT_VALUE: {}'.format(value))
+        logger.debug('API-token - SAML Attributes: {}'.format(attrs))
+
         if not attrs.get(group) or value not in attrs.get(group):
+            logger.info('API-token - User not permitted to create API tokens')
             raise exceptions.Forbidden
 
     session_dict = session.create_session_dict(
@@ -160,11 +183,14 @@ def metadata(auth):
 
     Exposes XML configuration of the Service Provider
     """
+    logger.info('Metadata called')
+
     settings = auth.get_settings()
     sp_metadata = settings.get_sp_metadata()
     errors = settings.validate_metadata(sp_metadata)
 
     if errors:
+        logger.error('Metadata - Errors: {}'.format(errors))
         return _build_error_response(errors)
     resp = flask.make_response(sp_metadata, 200)
     resp.headers['Content-Type'] = 'text/xml'
@@ -179,9 +205,16 @@ def sso(auth):
 
     Redirects user to IdP login page specified in metadata
     """
+    logger.info('SSO called')
+
     return_to = flask.request.args.get(
         'next', flask.request.host_url)
     login = auth.login(return_to=return_to)
+
+    logger.debug('SSO - RelayState: {}'.format(return_to))
+    logger.debug('SSO - Request XML: \n{}'.format(auth.get_last_request_xml()))
+
+    logger.info('SSO - Redirecting to {}'.format(login))
     return flask.redirect(login)
 
 
@@ -193,11 +226,18 @@ def acs(auth):
 
     Called by IdP with SAML assertion when authentication has been performed
     """
+    logger.info('ACS called')
+
     with _allow_duplicate_attribute_names():
         auth.process_response()
     errors = auth.get_errors()
 
+    logger.debug('ACS - Response XML: \n{}'.format(
+        auth.get_last_response_xml()))
+    logger.debug('ACS - User attributes: {}'.format(auth.get_attributes()))
+
     if errors:
+        logger.error('ACS - Errors: {}'.format(errors))
         return _build_error_response(errors)
 
     flask.session.update(session.create_session_dict(
@@ -208,12 +248,17 @@ def acs(auth):
     flask.session[session.SAML_NAME_ID] = auth.get_nameid()
     flask.session[session.SAML_SESSION_INDEX] = auth.get_session_index()
 
+    logger.debug('ACS - Name ID: {}'.format(auth.get_nameid()))
+    logger.debug('ACS - SAML Session Index: {}'.format(
+        auth.get_session_index()))
+
     if 'RelayState' in flask.request.form:
-        return flask.redirect(auth.redirect_to(
-            flask.request.form['RelayState'])
-        )
+        redirect_to = auth.redirect_to(flask.request.form['RelayState'])
     else:
-        return flask.redirect('/')
+        redirect_to = '/'
+
+    logger.info('ACS - Redirecting to {}'.format(redirect_to))
+    return flask.redirect(redirect_to)
 
 
 @blueprint.route('/slo/')
@@ -224,15 +269,26 @@ def slo(auth):
 
     Redirects user to IdP SLO specified in metadata
     """
+    logger.info('SLO called')
+
     name_id = flask.session.get(session.SAML_NAME_ID)
     session_index = flask.session.get(session.SAML_SESSION_INDEX)
+
+    logger.debug('SLO - Name ID: {}'.format(name_id))
+    logger.debug('SLO - SAML Session Index: {}'.format(session_index))
+
     # If session originates from IdP
     if name_id and session_index:
         logout = auth.logout(name_id=name_id, session_index=session_index)
-        return flask.redirect(logout)
+        logger.debug('SLO - Request XML: \n{}'.format(
+            auth.get_last_request_xml()))
+        redirect_to = logout
     else:
         flask.session.clear()
-        return flask.redirect('/')
+        redirect_to = '/'
+
+    logger.info('SLO - Redirecting to {}'.format(redirect_to))
+    return flask.redirect(redirect_to)
 
 
 @blueprint.route('/sls/')
@@ -244,13 +300,23 @@ def sls(auth):
     Consumes LogoutResponse from IdP when logout has been performed, and
     sends user back to landing page
     """
+    logger.info('SLS called')
+
     url = auth.process_slo(delete_session_cb=lambda: flask.session.clear())
+    logger.debug('SLS - Response XML: \n{}'.format(
+        auth.get_last_response_xml()))
+
     errors = auth.get_errors()
     if errors:
+        logger.error('SLS - Errors: {}'.format(errors))
         return _build_error_response(errors)
     if url is not None:
-        return flask.redirect(url)
-    return flask.redirect('/')
+        redirect_to = url
+    else:
+        redirect_to = '/'
+
+    logger.info('SLS - Redirecting to {}'.format(redirect_to))
+    return flask.redirect(redirect_to)
 
 
 @contextlib.contextmanager
