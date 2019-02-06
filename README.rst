@@ -114,3 +114,13 @@ Config key                          Default             Description
                                                         which gives a user the permission to create
                                                         API tokens
 ==================================  ==================  ============================================
+
+Logging
+-------
+
+The module performs extensive logging using the Flask app logging mechanism,
+through a child logger named ``sso``.
+
+- ``INFO`` provides a rough overview of the control flow.
+- ``DEBUG`` additionally provides an overview of relevant variables and the
+various request and response XML payloads.

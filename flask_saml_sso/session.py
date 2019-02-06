@@ -1,5 +1,4 @@
 import enum
-import logging
 
 from datetime import datetime
 from datetime import timedelta
@@ -14,8 +13,6 @@ SAML_NAME_ID = 'samlNameId'
 SAML_ATTRIBUTES = 'samlAttributes'
 SAML_SESSION_TYPE = 'samlSessionType'
 
-logger = logging.getLogger(__name__)
-
 
 class SessionType(enum.Enum):
     User = 1
@@ -24,6 +21,8 @@ class SessionType(enum.Enum):
 
 def create_session_dict(session_type: SessionType,
                         attributes: dict):
+    logger = flask.current_app.logger.getChild('sso')
+
     session_dict = {
         SAML_SESSION_TYPE: session_type,
         SAML_ATTRIBUTES: attributes,
