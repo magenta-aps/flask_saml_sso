@@ -284,7 +284,7 @@ def slo(auth):
     Redirects user to IdP SLO specified in metadata
     """
     logger = _get_logger()
-    logger.info('SLO called')
+    logger.debug('SLO called')
 
     name_id = flask.session.get(session.SAML_NAME_ID)
     session_index = flask.session.get(session.SAML_SESSION_INDEX)

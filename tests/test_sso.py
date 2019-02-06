@@ -16,7 +16,6 @@ from flask_testing import TestCase
 from onelogin.saml2.utils import OneLogin_Saml2_Utils as saml_utils
 
 import flask_saml_sso
-from flask_saml_sso import sso
 
 TESTS_DIR = os.path.dirname(__file__)
 
