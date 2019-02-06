@@ -6,7 +6,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import contextlib
-import logging
 import os
 from urllib import parse
 
@@ -199,7 +198,7 @@ def metadata(auth):
     errors = settings.validate_metadata(sp_metadata)
 
     if errors:
-        logger.error('Errors: {}'.format(errors))
+        logger.error('Metadata Errors: {}'.format(errors))
         return _build_error_response(errors)
 
     logger.debug('XML: \n{}'.format(sp_metadata))
@@ -227,7 +226,7 @@ def sso(auth):
     logger.debug('RelayState: {}'.format(return_to))
     logger.debug('SSO Request XML: \n{}'.format(auth.get_last_request_xml()))
 
-    logger.info('Redirecting to {}'.format(login))
+    logger.info('Redirecting to "{}" to initiate login'.format(login))
     return flask.redirect(login)
 
 
@@ -251,7 +250,7 @@ def acs(auth):
     logger.debug('User attributes: {}'.format(auth.get_attributes()))
 
     if errors:
-        logger.error('Errors: {}'.format(errors))
+        logger.error('ACS Errors: {}'.format(errors))
         return _build_error_response(errors)
 
     flask.session.update(session.create_session_dict(
@@ -271,7 +270,7 @@ def acs(auth):
     else:
         redirect_to = '/'
 
-    logger.info('Redirecting to {}'.format(redirect_to))
+    logger.info('Redirecting back to "{}" after login'.format(redirect_to))
     return flask.redirect(redirect_to)
 
 
@@ -302,7 +301,7 @@ def slo(auth):
         flask.session.clear()
         redirect_to = '/'
 
-    logger.info('Redirecting to {}'.format(redirect_to))
+    logger.info('Redirecting to "{}" to initiate logout'.format(redirect_to))
     return flask.redirect(redirect_to)
 
 
@@ -318,20 +317,22 @@ def sls(auth):
     logger = _get_logger()
     logger.debug('SLS called')
 
+    # Process the SLO message received from IdP
     url = auth.process_slo(delete_session_cb=lambda: flask.session.clear())
     logger.debug('SLS Response XML: \n{}'.format(
         auth.get_last_response_xml()))
 
     errors = auth.get_errors()
     if errors:
-        logger.error('Errors: {}'.format(errors))
+        logger.error('SLS Errors: {}'.format(errors))
         return _build_error_response(errors)
     if url is not None:
         redirect_to = url
     else:
         redirect_to = '/'
 
-    logger.info('Redirecting to {}'.format(redirect_to))
+    logger.info('Redirecting back to "{}" after logout'.format(
+        redirect_to))
     return flask.redirect(redirect_to)
 
 
