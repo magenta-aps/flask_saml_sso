@@ -83,14 +83,14 @@ def _get_saml_settings(app):
             with open(cert_file, 'r') as cf:
                 cert = cf.read()
         except OSError:
-            logger.error('Unable to read cert file {}'.format(cert_file))
+            logger.exception('Unable to read cert file {}'.format(cert_file))
             raise
 
         try:
             with open(key_file, 'r') as kf:
                 key = kf.read()
         except OSError:
-            logger.error('Unable to read key file {}'.format(key_file))
+            logger.exception('Unable to read key file {}'.format(key_file))
             raise
 
         s['sp'].update({
