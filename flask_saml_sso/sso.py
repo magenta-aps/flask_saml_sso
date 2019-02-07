@@ -157,7 +157,7 @@ def api_token():
     # Check if user is permitted to create API tokens
 
     if app.config.get('SAML_API_TOKEN_RESTRICT', False):
-        logger.info('Token restriction enabled')
+        logger.debug('Token restriction enabled')
 
         group = app.config['SAML_API_TOKEN_RESTRICT_ATTR']
         value = app.config['SAML_API_TOKEN_RESTRICT_VALUE']
@@ -170,7 +170,7 @@ def api_token():
         logger.debug('SAML Attributes: {}'.format(attrs))
 
         if not attrs.get(group) or value not in attrs.get(group):
-            logger.info('User not permitted to create API tokens')
+            logger.warning('User not permitted to create API tokens')
             raise exceptions.Forbidden
 
     session_dict = session.create_session_dict(
