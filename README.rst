@@ -121,6 +121,7 @@ Logging
 The module performs extensive logging using the Flask app logging mechanism,
 through a child logger named ``sso``.
 
-- ``INFO`` provides a rough overview of the control flow.
+- ``ERROR`` logs all errors that occur.
+- ``INFO`` additionally provides a rough overview of the control flow.
 - ``DEBUG`` additionally provides an overview of relevant variables and the
 various request and response XML payloads.
