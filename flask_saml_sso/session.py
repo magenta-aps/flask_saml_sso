@@ -1,4 +1,5 @@
 import enum
+
 from datetime import datetime
 from datetime import timedelta
 
@@ -20,11 +21,16 @@ class SessionType(enum.Enum):
 
 def create_session_dict(session_type: SessionType,
                         attributes: dict):
-    return {
+    logger = flask.current_app.logger.getChild('sso')
+
+    session_dict = {
         SAML_SESSION_TYPE: session_type,
         SAML_ATTRIBUTES: attributes,
         LOGGED_IN: True,
     }
+    logger.info('Creating session: {}'.format(session_dict))
+
+    return session_dict
 
 
 def get_session_interface(app):
