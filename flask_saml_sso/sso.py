@@ -42,6 +42,12 @@ def _get_saml_settings(app):
     insecure = config.setdefault('SAML_IDP_INSECURE', False)
     cert_file = config.setdefault('SAML_CERT_FILE', None)
     key_file = config.setdefault('SAML_KEY_FILE', None)
+    signature_algorithm = config.setdefault(
+        'SAML_SIGNATURE_ALGORITHM',
+        'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256')
+    digest_algorithm = config.setdefault(
+        'SAML_DIGEST_ALGORITHM',
+        'http://www.w3.org/2001/04/xmlenc#sha256')
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
     saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
@@ -71,7 +77,9 @@ def _get_saml_settings(app):
         },
         "security": {
             "authnRequestsSigned": requests_signed,
-            "logoutRequestSigned": requests_signed
+            "logoutRequestSigned": requests_signed,
+            "signatureAlgorithm": signature_algorithm,
+            "digestAlgorithm": digest_algorithm
         }
     }
 
