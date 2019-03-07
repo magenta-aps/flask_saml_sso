@@ -206,6 +206,7 @@ def metadata(auth):
     errors = settings.validate_metadata(sp_metadata)
 
     if errors:
+        errors.append(auth.get_last_error_reason())
         logger.error('Metadata Errors: {}'.format(errors))
         return _build_error_response(errors)
 
@@ -258,6 +259,7 @@ def acs(auth):
     logger.debug('User attributes: {}'.format(auth.get_attributes()))
 
     if errors:
+        errors.append(auth.get_last_error_reason())
         logger.error('ACS Errors: {}'.format(errors))
         return _build_error_response(errors)
 
@@ -332,6 +334,7 @@ def sls(auth):
 
     errors = auth.get_errors()
     if errors:
+        errors.append(auth.get_last_error_reason())
         logger.error('SLS Errors: {}'.format(errors))
         return _build_error_response(errors)
     if url is not None:
