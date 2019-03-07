@@ -49,6 +49,9 @@ def _get_saml_settings(app):
         'SAML_DIGEST_ALGORITHM',
         'http://www.w3.org/2001/04/xmlenc#sha256')
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
+    want_name_id = config.setdefault('SAML_WANT_NAME_ID', True)
+    want_attribute_statement = config.setdefault(
+        'SAML_WANT_ATTRIBUTE_STATEMENT', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
     saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
 
@@ -79,11 +82,12 @@ def _get_saml_settings(app):
             "authnRequestsSigned": requests_signed,
             "logoutRequestSigned": requests_signed,
             "signatureAlgorithm": signature_algorithm,
-            "digestAlgorithm": digest_algorithm
+            "digestAlgorithm": digest_algorithm,
+            "wantNameId": want_name_id,
+            "wantAttributeStatement": want_attribute_statement,
         }
     }
 
-    s.setdefault('sp', {}).update(remote.get('sp'))
     s.setdefault('idp', {}).update(remote.get('idp'))
 
     if requests_signed:
