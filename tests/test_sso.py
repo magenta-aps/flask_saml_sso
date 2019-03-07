@@ -114,7 +114,10 @@ class TestSSO(TestCase):
             'SAMLResponse': self.get_sso_response(),
         }
 
-        expected = ['invalid_response']
+        expected = [
+            'invalid_response',
+            'Could not validate timestamp: not yet valid. Check system clock.'
+        ]
 
         r = self.client.post('/saml/acs/', data=data)
 
