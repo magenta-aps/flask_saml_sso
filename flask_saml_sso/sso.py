@@ -40,6 +40,9 @@ def _get_saml_settings(app):
     config = app.config.copy()
 
     insecure = config.setdefault('SAML_IDP_INSECURE', False)
+    name_id_format = config.setdefault(
+        'SAML_NAME_ID_FORMAT',
+        'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified')
     cert_file = config.setdefault('SAML_CERT_FILE', None)
     key_file = config.setdefault('SAML_KEY_FILE', None)
     signature_algorithm = config.setdefault(
@@ -49,6 +52,9 @@ def _get_saml_settings(app):
         'SAML_DIGEST_ALGORITHM',
         'http://www.w3.org/2001/04/xmlenc#sha256')
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
+    want_name_id = config.setdefault('SAML_WANT_NAME_ID', True)
+    want_attribute_statement = config.setdefault(
+        'SAML_WANT_ATTRIBUTE_STATEMENT', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
     saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
 
@@ -74,16 +80,18 @@ def _get_saml_settings(app):
                 "url": flask.url_for('sso.sls', _external=True),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
+            "NameIDFormat": name_id_format,
         },
         "security": {
             "authnRequestsSigned": requests_signed,
             "logoutRequestSigned": requests_signed,
             "signatureAlgorithm": signature_algorithm,
-            "digestAlgorithm": digest_algorithm
+            "digestAlgorithm": digest_algorithm,
+            "wantNameId": want_name_id,
+            "wantAttributeStatement": want_attribute_statement,
         }
     }
 
-    s.setdefault('sp', {}).update(remote.get('sp'))
     s.setdefault('idp', {}).update(remote.get('idp'))
 
     if requests_signed:
@@ -206,6 +214,9 @@ def metadata(auth):
     errors = settings.validate_metadata(sp_metadata)
 
     if errors:
+        error_reason = auth.get_last_error_reason()
+        if error_reason:
+            errors.append(auth.get_last_error_reason())
         logger.error('Metadata Errors: {}'.format(errors))
         return _build_error_response(errors)
 
@@ -258,6 +269,9 @@ def acs(auth):
     logger.debug('User attributes: {}'.format(auth.get_attributes()))
 
     if errors:
+        error_reason = auth.get_last_error_reason()
+        if error_reason:
+            errors.append(auth.get_last_error_reason())
         logger.error('ACS Errors: {}'.format(errors))
         return _build_error_response(errors)
 
@@ -332,6 +346,9 @@ def sls(auth):
 
     errors = auth.get_errors()
     if errors:
+        error_reason = auth.get_last_error_reason()
+        if error_reason:
+            errors.append(auth.get_last_error_reason())
         logger.error('SLS Errors: {}'.format(errors))
         return _build_error_response(errors)
     if url is not None:
