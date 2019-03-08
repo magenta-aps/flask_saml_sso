@@ -40,6 +40,9 @@ def _get_saml_settings(app):
     config = app.config.copy()
 
     insecure = config.setdefault('SAML_IDP_INSECURE', False)
+    name_id_format = config.setdefault(
+        'SAML_NAME_ID_FORMAT',
+        'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified')
     cert_file = config.setdefault('SAML_CERT_FILE', None)
     key_file = config.setdefault('SAML_KEY_FILE', None)
     signature_algorithm = config.setdefault(
@@ -77,6 +80,7 @@ def _get_saml_settings(app):
                 "url": flask.url_for('sso.sls', _external=True),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
+            "NameIDFormat": name_id_format,
         },
         "security": {
             "authnRequestsSigned": requests_signed,
