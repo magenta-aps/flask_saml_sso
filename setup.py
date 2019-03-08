@@ -11,7 +11,7 @@ from setuptools import find_packages
 
 setup(
     name='flask_saml_sso',
-    version='0.3.0',
+    version='0.4.0',
     description='',
     author='Magenta ApS',
     author_email='info@magenta.dk',

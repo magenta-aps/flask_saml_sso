@@ -65,6 +65,13 @@ def get_session_attributes():
     return flask.session.get(session.SAML_ATTRIBUTES)
 
 
+def get_session_name_id():
+    """
+    Helper function for easy access to the NameID in the session
+    """
+    return flask.session.get(session.SAML_NAME_ID)
+
+
 class SAMLAuth(requests.auth.AuthBase):
     """
     Auth plugin for use with Requests, for automatically applying the correct
