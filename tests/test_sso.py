@@ -14,8 +14,10 @@ import flask
 import freezegun
 from flask_testing import TestCase
 from onelogin.saml2.utils import OneLogin_Saml2_Utils as saml_utils
+from werkzeug.datastructures import MultiDict
 
 import flask_saml_sso
+from flask_saml_sso import sso
 
 TESTS_DIR = os.path.dirname(__file__)
 
@@ -32,13 +34,18 @@ class TestSSO(TestCase):
         flask_saml_sso.init_app(app)
         return app
 
+    @staticmethod
+    def get_fixture(path) -> str:
+        with open(TESTS_DIR + path, 'r') as fixture:
+            return fixture.read()
+
     def get_sso_response(self):
-        with open(TESTS_DIR + '/sso/sso_response.xml', 'rb') as sso_response:
-            return base64.b64encode(sso_response.read())
+        fixture = self.get_fixture('/sso/sso_response.xml')
+        return base64.b64encode(fixture.encode())
 
     def get_slo_response(self):
-        with open(TESTS_DIR + '/sso/slo_response.xml', 'rb') as slo_response:
-            return saml_utils.deflate_and_base64_encode(slo_response.read())
+        fixture = self.get_fixture('/sso/slo_response.xml')
+        return saml_utils.deflate_and_base64_encode(fixture)
 
     def test_sso_redirects_to_login_with_next(self):
         r = self.client.get('/saml/sso/?next=http://redirect.me/to/here')
@@ -174,18 +181,38 @@ class TestSSO(TestCase):
         self.assertEqual(401, r.status_code)
         self.assertEqual(expected, r.json)
 
+    @freezegun.freeze_time('2019-01-01')
     def test_metadata_returns_metadata(self):
-        ns = 'onelogin.saml2.settings.OneLogin_Saml2_Settings'
-        metadata = b"<metadata/>"
+        """Assert that metadata is generated correctly"""
+        r = self.client.get('/saml/metadata/')
 
-        with patch(ns + '.validate_metadata') as validate, \
-            patch(ns + '.get_sp_metadata') as get_sp:
-            validate.return_value = False
-            get_sp.return_value = metadata
+        expected_metadata = self.get_fixture('/sso/metadata.xml')
+        actual_metadata = str(r.data, 'utf-8')
 
-            r = self.client.get('/saml/metadata/')
+        self.assertEqual(expected_metadata, actual_metadata)
+        self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
 
-        self.assertEqual(metadata, r.data)
+    @freezegun.freeze_time('2019-01-01')
+    def test_metadata_returns_metadata_when_scheme_is_https(self):
+        """Assert that metadata is generated correctly when scheme is HTTPS"""
+        r = self.client.get('/saml/metadata/', url_scheme='https')
+
+        expected_metadata = self.get_fixture('/sso/metadata_https.xml')
+        actual_metadata = str(r.data, 'utf-8')
+
+        self.assertEqual(expected_metadata, actual_metadata)
+        self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
+
+    @freezegun.freeze_time('2019-01-01')
+    def test_metadata_returns_metadata_force_https(self):
+        """Assert that metadata is generated correctly when HTTPS is forced"""
+        self.app.config['SAML_FORCE_HTTPS'] = True
+        r = self.client.get('/saml/metadata/')
+
+        expected_metadata = self.get_fixture('/sso/metadata_https.xml')
+        actual_metadata = str(r.data, 'utf-8')
+
+        self.assertEqual(expected_metadata, actual_metadata)
         self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
 
     @patch(
@@ -260,3 +287,53 @@ class TestSSO(TestCase):
 
         r = self.client.get('/saml/api-token/')
         self.assertEqual(403, r.status_code)
+
+    def test_prepare_flask_request(self):
+        """Ensure the flask request is converted correctly"""
+        expected_request = {
+            'get_data': MultiDict([]),
+            'http_host': '127.0.0.1:5000',
+            'https': 'off',
+            'post_data': MultiDict([]),
+            'script_name': '/',
+            'server_port': 5000
+        }
+
+        with self.app.test_request_context():
+            actual_request = sso._prepare_flask_request(self.app.config)
+
+        self.assertEqual(expected_request, actual_request)
+
+    def test_prepare_flask_request_https_scheme(self):
+        """Ensure the flask request is correct when the scheme is HTTPS"""
+        expected_request = {
+            'get_data': MultiDict([]),
+            'http_host': '127.0.0.1:5000',
+            'https': 'on',
+            'post_data': MultiDict([]),
+            'script_name': '/',
+            'server_port': 5000
+        }
+
+        with self.app.test_request_context(url_scheme='https'):
+            actual_request = sso._prepare_flask_request(self.app.config)
+
+        self.assertEqual(expected_request, actual_request)
+
+    def test_prepare_flask_request_force_https(self):
+        """Ensure the flask request is correct when HTTPS is forced"""
+        expected_request = {
+            'get_data': MultiDict([]),
+            'http_host': '127.0.0.1:5000',
+            'https': 'on',
+            'post_data': MultiDict([]),
+            'script_name': '/',
+            'server_port': 5000
+        }
+
+        self.app.config['SAML_FORCE_HTTPS'] = True
+
+        with self.app.test_request_context():
+            actual_request = sso._prepare_flask_request(self.app.config)
+
+        self.assertEqual(expected_request, actual_request)
