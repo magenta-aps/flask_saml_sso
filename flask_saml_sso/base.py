@@ -16,6 +16,8 @@ def init_app(app):
     if not enabled:
         return
 
+    app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+
     app.session_interface = session.get_session_interface(app)
     # Create the session database table, if it doesn't exist
     app.session_interface.db.create_all()

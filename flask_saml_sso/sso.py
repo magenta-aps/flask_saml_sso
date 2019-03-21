@@ -40,6 +40,7 @@ def _get_saml_settings(app):
     config = app.config.copy()
 
     insecure = config.setdefault('SAML_IDP_INSECURE', False)
+    force_https = config.setdefault('SAML_FORCE_HTTPS', False)
     name_id_format = config.setdefault(
         'SAML_NAME_ID_FORMAT',
         'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified')
@@ -71,13 +72,19 @@ def _get_saml_settings(app):
         "strict": True,
         "debug": True,
         "sp": {
-            "entityId": flask.url_for('sso.metadata', _external=True),
+            "entityId": flask.url_for(
+                'sso.metadata', _external=True,
+                _scheme='https' if force_https else None),
             "assertionConsumerService": {
-                "url": flask.url_for('sso.acs', _external=True),
+                "url": flask.url_for(
+                    'sso.acs', _external=True,
+                    _scheme='https' if force_https else None),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
             },
             "singleLogoutService": {
-                "url": flask.url_for('sso.sls', _external=True),
+                "url": flask.url_for(
+                    'sso.sls', _external=True,
+                    _scheme='https' if force_https else None),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             },
             "NameIDFormat": name_id_format,
@@ -119,12 +126,15 @@ def _get_saml_settings(app):
     return s
 
 
-def _prepare_flask_request():
+def _prepare_flask_request(config):
     """Construct OneLogin-friendly request object from Flask request"""
     # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
     url_data = parse.urlparse(flask.request.url)
+    force_https = config.setdefault('SAML_FORCE_HTTPS', False)
+
+    https = 'on' if flask.request.scheme == 'https' or force_https else 'off'
     return {
-        'https': 'on' if flask.request.scheme == 'https' else 'off',
+        'https': https,
         'http_host': flask.request.host,
         'server_port': url_data.port,
         'script_name': flask.request.path,
@@ -142,7 +152,7 @@ def _prepare_saml_auth(func):
         if not config:
             config = _get_saml_settings(app)
             app.extensions['saml'] = config
-        req = _prepare_flask_request()
+        req = _prepare_flask_request(config)
         auth = OneLogin_Saml2_Auth(req, config)
         return func(auth)
     return wrapper
