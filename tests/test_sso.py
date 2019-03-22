@@ -23,7 +23,6 @@ TESTS_DIR = os.path.dirname(__file__)
 
 
 class TestSSO(TestCase):
-
     def create_app(self):
         app = flask.Flask(__name__)
 
@@ -56,8 +55,7 @@ class TestSSO(TestCase):
         self.assertEqual('https', url.scheme)
         self.assertEqual('192.168.1.212', url.netloc)
         self.assertEqual('/simplesaml/saml2/idp/SSOService.php', url.path)
-        self.assertEqual('http://redirect.me/to/here',
-                         query.get('RelayState')[0])
+        self.assertEqual('http://redirect.me/to/here', query.get('RelayState')[0])
 
     def test_sso_redirects_to_login_with_no_next(self):
         r = self.client.get('/saml/sso/')
@@ -68,14 +66,13 @@ class TestSSO(TestCase):
         self.assertEqual('https', url.scheme)
         self.assertEqual('192.168.1.212', url.netloc)
         self.assertEqual('/simplesaml/saml2/idp/SSOService.php', url.path)
-        self.assertEqual('http://127.0.0.1:5000/',
-                         query.get('RelayState')[0])
+        self.assertEqual('http://127.0.0.1:5000/', query.get('RelayState')[0])
 
     @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_acs_redirects_correctly_with_relaystate(self):
         data = {
             'SAMLResponse': self.get_sso_response(),
-            'RelayState': 'http://redirect.me/to/here'
+            'RelayState': 'http://redirect.me/to/here',
         }
         r = self.client.post('/saml/acs/', data=data)
 
@@ -84,9 +81,7 @@ class TestSSO(TestCase):
 
     @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_acs_redirects_correctly_with_no_relaystate(self):
-        data = {
-            'SAMLResponse': self.get_sso_response(),
-        }
+        data = {'SAMLResponse': self.get_sso_response()}
         r = self.client.post('/saml/acs/', data=data)
 
         self.assertEqual(302, r.status_code)
@@ -94,9 +89,7 @@ class TestSSO(TestCase):
 
     @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_acs_sets_session_correctly(self):
-        data = {
-            'SAMLResponse': self.get_sso_response(),
-        }
+        data = {'SAMLResponse': self.get_sso_response()}
         with self.client.session_transaction() as sess:
             self.assertFalse(sess.get('MO-Token'))
 
@@ -105,7 +98,7 @@ class TestSSO(TestCase):
         samlUserData = {
             'urn:oid:0.9.2342.19200300.100.1.1': ['bruce'],
             'urn:oid:0.9.2342.19200300.100.1.3': ['bruce@kung.fu'],
-            'urn:oid:2.5.4.41': ['Bruce Lee']
+            'urn:oid:2.5.4.41': ['Bruce Lee'],
         }
         samlNameId = '_e3dfaf3e3385fd182b1c4d4164644393cce3ac7bfe'
         samlSessionIndex = '_6a54ed11e21b64af1a0380b1fba3ec575b05855465'
@@ -117,13 +110,11 @@ class TestSSO(TestCase):
 
     @freezegun.freeze_time('2010-09-17T13:30:00Z')
     def test_acs_returns_error_when_timestamp_is_not_valid(self):
-        data = {
-            'SAMLResponse': self.get_sso_response(),
-        }
+        data = {'SAMLResponse': self.get_sso_response()}
 
         expected = [
             'invalid_response',
-            'Could not validate timestamp: not yet valid. Check system clock.'
+            'Could not validate timestamp: not yet valid. Check system clock.',
         ]
 
         r = self.client.post('/saml/acs/', data=data)
@@ -142,22 +133,17 @@ class TestSSO(TestCase):
         self.assertEqual(302, r.status_code)
         self.assertEqual('https', url.scheme)
         self.assertEqual('192.168.1.212', url.netloc)
-        self.assertEqual('/simplesaml/saml2/idp/SingleLogoutService.php',
-                         url.path)
+        self.assertEqual('/simplesaml/saml2/idp/SingleLogoutService.php', url.path)
 
     def test_sls_redirects_correctly(self):
-        data = {
-            'SAMLResponse': self.get_slo_response(),
-        }
+        data = {'SAMLResponse': self.get_slo_response()}
         r = self.client.get('/saml/sls/', query_string=urlencode(data))
 
         self.assertEqual(302, r.status_code)
         self.assertEqual('http://127.0.0.1:5000/', r.location)
 
     def test_sls_deletes_session(self):
-        data = {
-            'SAMLResponse': self.get_slo_response(),
-        }
+        data = {'SAMLResponse': self.get_slo_response()}
 
         with self.client.session_transaction() as sess:
             sess[flask_saml_sso.session.LOGGED_IN] = True
@@ -167,12 +153,12 @@ class TestSSO(TestCase):
         with self.client.session_transaction() as sess:
             self.assertFalse(sess.get(flask_saml_sso.session.LOGGED_IN))
 
-    @patch('onelogin.saml2.auth.OneLogin_Saml2_Auth.get_errors',
-           lambda *x, **y: ['ERROR 2'])
+    @patch(
+        'onelogin.saml2.auth.OneLogin_Saml2_Auth.get_errors',
+        lambda *x, **y: ['ERROR 2'],
+    )
     def test_sls_returns_errors(self):
-        data = {
-            'SAMLResponse': self.get_slo_response(),
-        }
+        data = {'SAMLResponse': self.get_slo_response()}
 
         r = self.client.get('/saml/sls/', query_string=urlencode(data))
 
@@ -217,7 +203,7 @@ class TestSSO(TestCase):
 
     @patch(
         'onelogin.saml2.settings.OneLogin_Saml2_Settings.validate_metadata',
-        lambda *x, **y: ['ERROR 3', 'ERROR 4']
+        lambda *x, **y: ['ERROR 3', 'ERROR 4'],
     )
     def test_metadata_returns_errors(self):
         r = self.client.get('/saml/metadata/')
@@ -246,14 +232,14 @@ class TestSSO(TestCase):
 
         expected_api_session = {
             flask_saml_sso.session.SAML_ATTRIBUTES: attributes,
-            flask_saml_sso.session.SAML_SESSION_TYPE:
-                flask_saml_sso.session.SessionType.Service,
+            flask_saml_sso.session.SAML_SESSION_TYPE: flask_saml_sso.session.SessionType.Service,
             flask_saml_sso.session.LOGGED_IN: True,
-            '_permanent': True
+            '_permanent': True,
         }
 
-        with self.app.test_request_context('/saml/metadata/',
-                                           headers={'session': r.json}):
+        with self.app.test_request_context(
+            '/saml/metadata/', headers={'session': r.json}
+        ):
             self.assertEqual(expected_api_session, flask.session)
 
     def test_api_token_with_restriction(self):
@@ -296,7 +282,7 @@ class TestSSO(TestCase):
             'https': 'off',
             'post_data': MultiDict([]),
             'script_name': '/',
-            'server_port': 5000
+            'server_port': 5000,
         }
 
         with self.app.test_request_context():
@@ -312,7 +298,7 @@ class TestSSO(TestCase):
             'https': 'on',
             'post_data': MultiDict([]),
             'script_name': '/',
-            'server_port': 5000
+            'server_port': 5000,
         }
 
         with self.app.test_request_context(url_scheme='https'):
@@ -328,7 +314,7 @@ class TestSSO(TestCase):
             'https': 'on',
             'post_data': MultiDict([]),
             'script_name': '/',
-            'server_port': 5000
+            'server_port': 5000,
         }
 
         self.app.config['SAML_FORCE_HTTPS'] = True
