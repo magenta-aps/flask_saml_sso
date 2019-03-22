@@ -33,9 +33,7 @@ class TestBase(TestCase):
         """Assert that we don't add blueprint and session interface if
         auth is disabled"""
         app = MagicMock()
-        app.config = {
-            'SAML_AUTH_ENABLE': False
-        }
+        app.config = {'SAML_AUTH_ENABLE': False}
         expected_interface = app.session_interface
 
         flask_saml_sso.init_app(app)
@@ -59,7 +57,7 @@ class TestBase(TestCase):
         cookie_name = self.app.session_cookie_name
 
         with self.app.test_request_context(
-                headers={cookie_name: expected_session_id}
+            headers={cookie_name: expected_session_id}
         ) as rctx:
             actual_session_id = flask_saml_sso.get_session_id()
 
@@ -72,9 +70,7 @@ class TestBase(TestCase):
 
         header = dump_cookie(cookie_name, expected_session_id)
 
-        with self.app.test_request_context(
-                environ_base={'HTTP_COOKIE': header}
-        ):
+        with self.app.test_request_context(environ_base={'HTTP_COOKIE': header}):
             actual_session_id = flask_saml_sso.get_session_id()
 
         self.assertEqual(expected_session_id, actual_session_id)

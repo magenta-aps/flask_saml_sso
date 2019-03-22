@@ -29,10 +29,12 @@ def requires_auth(f):
     Decorator used to automatically ensure that a user has an active
     valid session
     """
+
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         check_saml_authentication()
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -42,7 +44,8 @@ def check_saml_authentication():
     """
     # Check if session exists is valid
     if flask.current_app.config['SAML_AUTH_ENABLE'] and not flask.session.get(
-            session.LOGGED_IN):
+        session.LOGGED_IN
+    ):
         raise exceptions.Unauthorized
 
 
@@ -80,6 +83,7 @@ class SAMLAuth(requests.auth.AuthBase):
     header for when communicating with other systems using Flask SAML SSO with
     the same shared session
     """
+
     def __init__(self, session_id=None):
         self.session_id = session_id
 
