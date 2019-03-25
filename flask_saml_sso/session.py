@@ -102,8 +102,10 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
             return None
 
     def open_session(self, app, request):  # pragma: no cover
-        # XXX: Updated to use cookies and headers
+        # BEGIN CHANGES: Updated to use cookies and headers
         sid = self._get_sid(app, request)
+        # END CHANGES
+
         if not sid:
             sid = self._generate_sid()
             return self.session_class(sid=sid, permanent=self.permanent)
