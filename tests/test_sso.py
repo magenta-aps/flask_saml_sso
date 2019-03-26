@@ -29,9 +29,15 @@ class TestSSO(TestCase):
         app.config['SAML_AUTH_ENABLE'] = True
         app.config['SAML_IDP_METADATA_FILE'] = TESTS_DIR + '/sso/idp.xml'
         app.config['SERVER_NAME'] = "127.0.0.1:5000"
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 
         flask_saml_sso.init_app(app)
         return app
+
+    def tearDown(self):
+        self.app.session_interface.db.drop_all()
+
+        super().tearDown()
 
     @staticmethod
     def get_fixture(path) -> str:
