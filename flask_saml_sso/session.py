@@ -101,6 +101,11 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
         else:
             return None
 
+    def purge_expired_sessions(self):
+        """Delete all expired sessions from the database."""
+        q = self.sql_session_model.expiry <= datetime.datetime.utcnow()
+        self.sql_session_model.query.filter(q).delete()
+
     def open_session(self, app, request):  # pragma: no cover
         # BEGIN CHANGES: Updated to use cookies and headers
         sid = self._get_sid(app, request)
@@ -119,6 +124,10 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
             except BadSignature:
                 sid = self._generate_sid()
                 return self.session_class(sid=sid, permanent=self.permanent)
+
+        # BEGIN CHANGES: Delete old sessions
+        self.purge_expired_sessions()
+        # END CHANGES
 
         store_id = self.key_prefix + sid
         saved_session = self.sql_session_model.query.filter_by(

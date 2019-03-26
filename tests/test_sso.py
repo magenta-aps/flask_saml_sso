@@ -147,6 +147,34 @@ class TestSSO(TestCase):
             ],
         )
 
+    @freezegun.freeze_time('2018-10-17')
+    def test_purge_retains_current_sessions(self):
+        with freezegun.freeze_time('2018-09-17T13:30:00Z'):
+            r = self.client.post(
+                '/saml/acs/', data={'SAMLResponse': self.get_sso_response()}
+            )
+            self.assertRedirects(r, 'http://127.0.0.1:5000/')
+
+        self.assertEqual(len(self.get_sessions()), 1)
+
+        self.app.session_interface.purge_expired_sessions()
+
+        self.assertEqual(len(self.get_sessions()), 1)
+
+    def test_purge_deletes_old_sessions(self):
+        with freezegun.freeze_time('2018-09-17T13:30:00Z'):
+            r = self.client.post(
+                '/saml/acs/', data={'SAMLResponse': self.get_sso_response()}
+            )
+            self.assertRedirects(r, 'http://127.0.0.1:5000/')
+
+        self.assertEqual(len(self.get_sessions()), 1, 'login failed')
+
+        with freezegun.freeze_time('2019-11-17'):
+            self.app.session_interface.purge_expired_sessions()
+
+        self.assertEqual(len(self.get_sessions()), 0, 'purge had no effect')
+
     @freezegun.freeze_time('2010-09-17T13:30:00Z')
     def test_acs_returns_error_when_timestamp_is_not_valid(self):
         data = {'SAMLResponse': self.get_sso_response()}
