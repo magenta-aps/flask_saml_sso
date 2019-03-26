@@ -1,7 +1,5 @@
+import datetime
 import enum
-
-from datetime import datetime
-from datetime import timedelta
 
 import flask
 from flask_session import sessions
@@ -82,9 +80,11 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
     def get_session_expiration_time_by_type(self, app, session_type: SessionType):
         if session_type == SessionType.Service:
             lifetime_seconds = app.config.get('SAML_SERVICE_SESSION_LIFETIME', 2678400)
-            return datetime.utcnow() + timedelta(seconds=lifetime_seconds)
+            return datetime.datetime.utcnow() + datetime.timedelta(
+                seconds=lifetime_seconds
+            )
         else:
-            return datetime.utcnow() + app.permanent_session_lifetime
+            return datetime.datetime.utcnow() + app.permanent_session_lifetime
 
     def get_expiration_time(self, app, session):
         if session.permanent:
@@ -101,9 +101,16 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
         else:
             return None
 
+    def purge_expired_sessions(self):
+        """Delete all expired sessions from the database."""
+        q = self.sql_session_model.expiry <= datetime.datetime.utcnow()
+        self.sql_session_model.query.filter(q).delete()
+
     def open_session(self, app, request):  # pragma: no cover
-        # XXX: Updated to use cookies and headers
+        # BEGIN CHANGES: Updated to use cookies and headers
         sid = self._get_sid(app, request)
+        # END CHANGES
+
         if not sid:
             sid = self._generate_sid()
             return self.session_class(sid=sid, permanent=self.permanent)
@@ -118,11 +125,15 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
                 sid = self._generate_sid()
                 return self.session_class(sid=sid, permanent=self.permanent)
 
+        # BEGIN CHANGES: Delete old sessions
+        self.purge_expired_sessions()
+        # END CHANGES
+
         store_id = self.key_prefix + sid
         saved_session = self.sql_session_model.query.filter_by(
             session_id=store_id
         ).first()
-        if saved_session and saved_session.expiry <= datetime.utcnow():
+        if saved_session and saved_session.expiry <= datetime.datetime.utcnow():
             # Delete expired session
             self.db.session.delete(saved_session)
             self.db.session.commit()

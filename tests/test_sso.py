@@ -23,15 +23,23 @@ TESTS_DIR = os.path.dirname(__file__)
 
 
 class TestSSO(TestCase):
+    maxDiff = None
+
     def create_app(self):
         app = flask.Flask(__name__)
 
         app.config['SAML_AUTH_ENABLE'] = True
         app.config['SAML_IDP_METADATA_FILE'] = TESTS_DIR + '/sso/idp.xml'
         app.config['SERVER_NAME'] = "127.0.0.1:5000"
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 
         flask_saml_sso.init_app(app)
         return app
+
+    def tearDown(self):
+        self.app.session_interface.db.drop_all()
+
+        super().tearDown()
 
     @staticmethod
     def get_fixture(path) -> str:
@@ -46,6 +54,17 @@ class TestSSO(TestCase):
         fixture = self.get_fixture('/sso/slo_response.xml')
         return saml_utils.deflate_and_base64_encode(fixture)
 
+    def get_sessions(self):
+        return [
+            {
+                'id': sess.id,
+                'expiry': sess.expiry.isoformat(),
+                'data': self.app.session_interface.serializer.loads(sess.data),
+            }
+            for sess in self.app.session_interface.sql_session_model.query
+        ]
+
+    @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_sso_redirects_to_login_with_next(self):
         r = self.client.get('/saml/sso/?next=http://redirect.me/to/here')
         url = urlparse(r.location)
@@ -76,16 +95,14 @@ class TestSSO(TestCase):
         }
         r = self.client.post('/saml/acs/', data=data)
 
-        self.assertEqual(302, r.status_code)
-        self.assertEqual('http://redirect.me/to/here', r.location)
+        self.assertRedirects(r, 'http://redirect.me/to/here')
 
     @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_acs_redirects_correctly_with_no_relaystate(self):
         data = {'SAMLResponse': self.get_sso_response()}
         r = self.client.post('/saml/acs/', data=data)
 
-        self.assertEqual(302, r.status_code)
-        self.assertEqual('http://127.0.0.1:5000/', r.location)
+        self.assertRedirects(r, 'http://127.0.0.1:5000/')
 
     @freezegun.freeze_time('2018-09-17T13:30:00Z')
     def test_acs_sets_session_correctly(self):
@@ -107,6 +124,56 @@ class TestSSO(TestCase):
             self.assertEqual(samlUserData, sess.get('samlAttributes'))
             self.assertEqual(samlNameId, sess.get('samlNameId'))
             self.assertEqual(samlSessionIndex, sess.get('samlSessionIndex'))
+
+        self.assertEqual(
+            self.get_sessions(),
+            [
+                {
+                    'id': 1,
+                    'expiry': '2018-10-18T13:30:00',
+                    'data': {
+                        '_permanent': True,
+                        'loggedIn': True,
+                        'samlAttributes': {
+                            'urn:oid:0.9.2342.19200300.100.1.1': ['bruce'],
+                            'urn:oid:0.9.2342.19200300.100.1.3': ['bruce@kung.fu'],
+                            'urn:oid:2.5.4.41': ['Bruce Lee'],
+                        },
+                        'samlNameId': '_e3dfaf3e3385fd182b1c4d4164644393cce3ac7bfe',
+                        'samlSessionIndex': '_6a54ed11e21b64af1a0380b1fba3ec575b05855465',
+                        'samlSessionType': flask_saml_sso.session.SessionType.User,
+                    },
+                }
+            ],
+        )
+
+    @freezegun.freeze_time('2018-10-17')
+    def test_purge_retains_current_sessions(self):
+        with freezegun.freeze_time('2018-09-17T13:30:00Z'):
+            r = self.client.post(
+                '/saml/acs/', data={'SAMLResponse': self.get_sso_response()}
+            )
+            self.assertRedirects(r, 'http://127.0.0.1:5000/')
+
+        self.assertEqual(len(self.get_sessions()), 1)
+
+        self.app.session_interface.purge_expired_sessions()
+
+        self.assertEqual(len(self.get_sessions()), 1)
+
+    def test_purge_deletes_old_sessions(self):
+        with freezegun.freeze_time('2018-09-17T13:30:00Z'):
+            r = self.client.post(
+                '/saml/acs/', data={'SAMLResponse': self.get_sso_response()}
+            )
+            self.assertRedirects(r, 'http://127.0.0.1:5000/')
+
+        self.assertEqual(len(self.get_sessions()), 1, 'login failed')
+
+        with freezegun.freeze_time('2019-11-17'):
+            self.app.session_interface.purge_expired_sessions()
+
+        self.assertEqual(len(self.get_sessions()), 0, 'purge had no effect')
 
     @freezegun.freeze_time('2010-09-17T13:30:00Z')
     def test_acs_returns_error_when_timestamp_is_not_valid(self):
@@ -142,16 +209,47 @@ class TestSSO(TestCase):
         self.assertEqual(302, r.status_code)
         self.assertEqual('http://127.0.0.1:5000/', r.location)
 
+    @freezegun.freeze_time('2018-10-17')
     def test_sls_deletes_session(self):
-        data = {'SAMLResponse': self.get_slo_response()}
+        with freezegun.freeze_time('2018-09-17T13:30:00Z'):
+            r = self.client.post(
+                '/saml/acs/', data={'SAMLResponse': self.get_sso_response()}
+            )
+            self.assertRedirects(r, 'http://127.0.0.1:5000/')
 
-        with self.client.session_transaction() as sess:
-            sess[flask_saml_sso.session.LOGGED_IN] = True
+        self.assertEqual(
+            self.get_sessions(),
+            [
+                {
+                    'data': {
+                        '_permanent': True,
+                        'loggedIn': True,
+                        'samlAttributes': {
+                            'urn:oid:0.9.2342.19200300.100.1.1': ['bruce'],
+                            'urn:oid:0.9.2342.19200300.100.1.3': ['bruce@kung.fu'],
+                            'urn:oid:2.5.4.41': ['Bruce Lee'],
+                        },
+                        'samlNameId': '_e3dfaf3e3385fd182b1c4d4164644393cce3ac7bfe',
+                        'samlSessionIndex': '_6a54ed11e21b64af1a0380b1fba3ec575b05855465',
+                        'samlSessionType': flask_saml_sso.session.SessionType.User,
+                    },
+                    'expiry': '2018-10-18T13:30:00',
+                    'id': 1,
+                }
+            ],
+        )
+
+        data = {'SAMLResponse': self.get_slo_response()}
 
         r = self.client.get('/saml/sls/', query_string=urlencode(data))
 
         with self.client.session_transaction() as sess:
             self.assertFalse(sess.get(flask_saml_sso.session.LOGGED_IN))
+
+        self.assertEqual(
+            self.get_sessions(),
+            [{'data': {'_permanent': True}, 'expiry': '2018-11-17T00:00:00', 'id': 1}],
+        )
 
     @patch(
         'onelogin.saml2.auth.OneLogin_Saml2_Auth.get_errors',
