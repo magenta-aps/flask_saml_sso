@@ -22,8 +22,7 @@ from . import session
 
 basedir = os.path.dirname(__file__)
 
-blueprint = flask.Blueprint('sso', __name__, static_url_path='',
-                            url_prefix='/saml')
+blueprint = flask.Blueprint('sso', __name__, static_url_path='', url_prefix='/saml')
 
 
 def _get_logger():
@@ -40,21 +39,21 @@ def _get_saml_settings(app):
     config = app.config.copy()
 
     insecure = config.setdefault('SAML_IDP_INSECURE', False)
+    force_https = config.setdefault('SAML_FORCE_HTTPS', False)
     name_id_format = config.setdefault(
-        'SAML_NAME_ID_FORMAT',
-        'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified')
+        'SAML_NAME_ID_FORMAT', 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified'
+    )
     cert_file = config.setdefault('SAML_CERT_FILE', None)
     key_file = config.setdefault('SAML_KEY_FILE', None)
     signature_algorithm = config.setdefault(
-        'SAML_SIGNATURE_ALGORITHM',
-        'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256')
+        'SAML_SIGNATURE_ALGORITHM', 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
+    )
     digest_algorithm = config.setdefault(
-        'SAML_DIGEST_ALGORITHM',
-        'http://www.w3.org/2001/04/xmlenc#sha256')
+        'SAML_DIGEST_ALGORITHM', 'http://www.w3.org/2001/04/xmlenc#sha256'
+    )
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
     want_name_id = config.setdefault('SAML_WANT_NAME_ID', True)
-    want_attribute_statement = config.setdefault(
-        'SAML_WANT_ATTRIBUTE_STATEMENT', False)
+    want_attribute_statement = config.setdefault('SAML_WANT_ATTRIBUTE_STATEMENT', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
     saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
 
@@ -63,22 +62,27 @@ def _get_saml_settings(app):
             remote = OneLogin_Saml2_IdPMetadataParser.parse(idp.read())
     else:
         remote = OneLogin_Saml2_IdPMetadataParser.parse_remote(
-            saml_idp_metadata_url,
-            validate_cert=not insecure
+            saml_idp_metadata_url, validate_cert=not insecure
         )
 
     s = {
         "strict": True,
         "debug": True,
         "sp": {
-            "entityId": flask.url_for('sso.metadata', _external=True),
+            "entityId": flask.url_for(
+                'sso.metadata', _external=True, _scheme='https' if force_https else None
+            ),
             "assertionConsumerService": {
-                "url": flask.url_for('sso.acs', _external=True),
-                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                "url": flask.url_for(
+                    'sso.acs', _external=True, _scheme='https' if force_https else None
+                ),
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
             },
             "singleLogoutService": {
-                "url": flask.url_for('sso.sls', _external=True),
-                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                "url": flask.url_for(
+                    'sso.sls', _external=True, _scheme='https' if force_https else None
+                ),
+                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
             },
             "NameIDFormat": name_id_format,
         },
@@ -89,7 +93,7 @@ def _get_saml_settings(app):
             "digestAlgorithm": digest_algorithm,
             "wantNameId": want_name_id,
             "wantAttributeStatement": want_attribute_statement,
-        }
+        },
     }
 
     s.setdefault('idp', {}).update(remote.get('idp'))
@@ -109,32 +113,33 @@ def _get_saml_settings(app):
             logger.exception('Unable to read key file {}'.format(key_file))
             raise
 
-        s['sp'].update({
-            "x509cert": cert,
-            "privateKey": key
-        })
+        s['sp'].update({"x509cert": cert, "privateKey": key})
 
     logger.debug('SAML Settings: \n{}'.format(s))
 
     return s
 
 
-def _prepare_flask_request():
+def _prepare_flask_request(config):
     """Construct OneLogin-friendly request object from Flask request"""
     # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
     url_data = parse.urlparse(flask.request.url)
+    force_https = config.setdefault('SAML_FORCE_HTTPS', False)
+
+    https = 'on' if flask.request.scheme == 'https' or force_https else 'off'
     return {
-        'https': 'on' if flask.request.scheme == 'https' else 'off',
+        'https': https,
         'http_host': flask.request.host,
         'server_port': url_data.port,
         'script_name': flask.request.path,
         'get_data': flask.request.args.copy(),
-        'post_data': flask.request.form.copy()
+        'post_data': flask.request.form.copy(),
     }
 
 
 def _prepare_saml_auth(func):
     """Decorator to create and initialize the OneLogin SAML2 Auth client"""
+
     @functools.wraps(func)
     def wrapper():
         app = flask.current_app
@@ -142,9 +147,10 @@ def _prepare_saml_auth(func):
         if not config:
             config = _get_saml_settings(app)
             app.extensions['saml'] = config
-        req = _prepare_flask_request()
+        req = _prepare_flask_request(config)
         auth = OneLogin_Saml2_Auth(req, config)
         return func(auth)
+
     return wrapper
 
 
@@ -160,13 +166,10 @@ def api_token():
     logger.debug('API-token called')
 
     if not flask.session.get(session.LOGGED_IN):
-        qargs = parse.urlencode({
-            'next': flask.url_for('sso.api_token')
-        })
+        qargs = parse.urlencode({'next': flask.url_for('sso.api_token')})
         redirect_url = "{}?{}".format(flask.url_for('sso.sso'), qargs)
 
-        logger.info('User not logged in, redirecting to {}'.format(
-            redirect_url))
+        logger.info('User not logged in, redirecting to {}'.format(redirect_url))
         return flask.redirect(redirect_url)
 
     app = flask.current_app
@@ -179,10 +182,8 @@ def api_token():
         value = app.config['SAML_API_TOKEN_RESTRICT_VALUE']
         attrs = flask.session.get(session.SAML_ATTRIBUTES)
 
-        logger.debug(
-            'SAML_API_TOKEN_RESTRICT_ATTR: {}'.format(group))
-        logger.debug(
-            'SAML_API_TOKEN_RESTRICT_VALUE: {}'.format(value))
+        logger.debug('SAML_API_TOKEN_RESTRICT_ATTR: {}'.format(group))
+        logger.debug('SAML_API_TOKEN_RESTRICT_VALUE: {}'.format(value))
         logger.debug('SAML Attributes: {}'.format(attrs))
 
         if not attrs.get(group) or value not in attrs.get(group):
@@ -190,8 +191,7 @@ def api_token():
             raise exceptions.Forbidden
 
     session_dict = session.create_session_dict(
-        session.SessionType.Service,
-        flask.session.get(session.SAML_ATTRIBUTES)
+        session.SessionType.Service, flask.session.get(session.SAML_ATTRIBUTES)
     )
     sid = flask.current_app.session_interface.insert_new_session(session_dict)
 
@@ -238,8 +238,7 @@ def sso(auth):
     logger = _get_logger()
     logger.debug('SSO called')
 
-    return_to = flask.request.args.get(
-        'next', flask.request.host_url)
+    return_to = flask.request.args.get('next', flask.request.host_url)
     login = auth.login(return_to=return_to)
 
     logger.debug('RelayState: {}'.format(return_to))
@@ -264,8 +263,7 @@ def acs(auth):
         auth.process_response()
     errors = auth.get_errors()
 
-    logger.debug('ACS Response XML: \n{}'.format(
-        auth.get_last_response_xml()))
+    logger.debug('ACS Response XML: \n{}'.format(auth.get_last_response_xml()))
     logger.debug('User attributes: {}'.format(auth.get_attributes()))
 
     if errors:
@@ -275,17 +273,15 @@ def acs(auth):
         logger.error('ACS Errors: {}'.format(errors))
         return _build_error_response(errors)
 
-    flask.session.update(session.create_session_dict(
-        session.SessionType.User,
-        auth.get_attributes()
-    ))
+    flask.session.update(
+        session.create_session_dict(session.SessionType.User, auth.get_attributes())
+    )
     # Set SSO specific IdP metadata
     flask.session[session.SAML_NAME_ID] = auth.get_nameid()
     flask.session[session.SAML_SESSION_INDEX] = auth.get_session_index()
 
     logger.debug('Name ID: {}'.format(auth.get_nameid()))
-    logger.debug('SAML Session Index: {}'.format(
-        auth.get_session_index()))
+    logger.debug('SAML Session Index: {}'.format(auth.get_session_index()))
 
     if 'RelayState' in flask.request.form:
         redirect_to = auth.redirect_to(flask.request.form['RelayState'])
@@ -316,8 +312,7 @@ def slo(auth):
     # If session originates from IdP
     if name_id and session_index:
         logout = auth.logout(name_id=name_id, session_index=session_index)
-        logger.debug('SLO Request XML: \n{}'.format(
-            auth.get_last_request_xml()))
+        logger.debug('SLO Request XML: \n{}'.format(auth.get_last_request_xml()))
         redirect_to = logout
     else:
         flask.session.clear()
@@ -341,8 +336,7 @@ def sls(auth):
 
     # Process the SLO message received from IdP
     url = auth.process_slo(delete_session_cb=lambda: flask.session.clear())
-    logger.debug('SLS Response XML: \n{}'.format(
-        auth.get_last_response_xml()))
+    logger.debug('SLS Response XML: \n{}'.format(auth.get_last_response_xml()))
 
     errors = auth.get_errors()
     if errors:
@@ -356,8 +350,7 @@ def sls(auth):
     else:
         redirect_to = '/'
 
-    logger.info('Redirecting back to "{}" after logout'.format(
-        redirect_to))
+    logger.info('Redirecting back to "{}" after logout'.format(redirect_to))
     return flask.redirect(redirect_to)
 
 
@@ -368,6 +361,7 @@ def _allow_duplicate_attribute_names():  # pragma: no cover
     attribute names
     see: https://github.com/onelogin/python3-saml/issues/39
     """
+
     def _get_attributes_patched(self):
         """
         Gets the Attributes from the AttributeStatement element.
@@ -378,7 +372,8 @@ def _allow_duplicate_attribute_names():  # pragma: no cover
         """
         attributes = {}
         attribute_nodes = self._OneLogin_Saml2_Response__query_assertion(
-            '/saml:AttributeStatement/saml:Attribute')
+            '/saml:AttributeStatement/saml:Attribute'
+        )
         for attribute_node in attribute_nodes:
             attr_name = attribute_node.get('Name')
             # XXX: Fix for duplicate attribute keys
@@ -390,8 +385,8 @@ def _allow_duplicate_attribute_names():  # pragma: no cover
 
             values = []
             for attr in attribute_node.iterchildren(
-                    '{%s}AttributeValue' % OneLogin_Saml2_Constants.NSMAP[
-                        'saml']):
+                '{%s}AttributeValue' % OneLogin_Saml2_Constants.NSMAP['saml']
+            ):
                 attr_text = OneLogin_Saml2_XML.element_text(attr)
                 if attr_text:
                     attr_text = attr_text.strip()
@@ -400,18 +395,19 @@ def _allow_duplicate_attribute_names():  # pragma: no cover
 
                 # Parse any nested NameID children
                 for nameid in attr.iterchildren(
-                        '{%s}NameID' % OneLogin_Saml2_Constants.NSMAP[
-                            'saml']):
-                    values.append({
-                        'NameID': {
-                            'Format': nameid.get('Format'),
-                            'NameQualifier': nameid.get('NameQualifier'),
-                            'value': nameid.text
+                    '{%s}NameID' % OneLogin_Saml2_Constants.NSMAP['saml']
+                ):
+                    values.append(
+                        {
+                            'NameID': {
+                                'Format': nameid.get('Format'),
+                                'NameQualifier': nameid.get('NameQualifier'),
+                                'value': nameid.text,
+                            }
                         }
-                    })
+                    )
             # XXX: Fix for duplicate attribute keys
-            attributes[attr_name] = attributes.setdefault(
-                attr_name, []) + values
+            attributes[attr_name] = attributes.setdefault(attr_name, []) + values
         return attributes
 
     app = flask.current_app
