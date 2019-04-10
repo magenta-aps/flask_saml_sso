@@ -147,7 +147,7 @@ def _prepare_saml_auth(func):
         if not config:
             config = _get_saml_settings(app)
             app.extensions['saml'] = config
-        req = _prepare_flask_request(config)
+        req = _prepare_flask_request(app.config)
         auth = OneLogin_Saml2_Auth(req, config)
         return func(auth)
 
