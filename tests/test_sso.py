@@ -421,3 +421,14 @@ class TestSSO(TestCase):
             actual_request = sso._prepare_flask_request(self.app.config)
 
         self.assertEqual(expected_request, actual_request)
+
+    @patch(
+        'flask_saml_sso.sso._prepare_flask_request', wraps=sso._prepare_flask_request
+    )
+    @freezegun.freeze_time('2019-01-01')
+    def test_prepare_flask_request_is_called_correctly_internally(self, mock):
+        """Ensure _prepare_flask_request is called correctly internally"""
+        self.app.config['SAML_FORCE_HTTPS'] = True
+        self.client.get('/saml/metadata/')
+
+        mock.assert_called_with(self.app.config)
