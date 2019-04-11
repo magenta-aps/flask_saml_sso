@@ -56,6 +56,10 @@ def _get_saml_settings(app):
     want_attribute_statement = config.setdefault('SAML_WANT_ATTRIBUTE_STATEMENT', False)
     saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
     saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
+    requested_authn_context = config.setdefault('SAML_REQUESTED_AUTHN_CONTEXT', True)
+    requested_authn_context_comparison = config.setdefault(
+        'SAML_REQUESTED_AUTHN_CONTEXT_COMPARISON', 'exact'
+    )
 
     if saml_idp_metadata_file:
         with open(saml_idp_metadata_file, 'r') as idp:
@@ -93,6 +97,8 @@ def _get_saml_settings(app):
             "digestAlgorithm": digest_algorithm,
             "wantNameId": want_name_id,
             "wantAttributeStatement": want_attribute_statement,
+            "requestedAuthnContext": requested_authn_context,
+            "requestedAuthnContextComparison": requested_authn_context_comparison,
         },
     }
 
