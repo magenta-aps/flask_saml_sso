@@ -378,6 +378,7 @@ class TestSSO(TestCase):
             'get_data': MultiDict([]),
             'http_host': '127.0.0.1:5000',
             'https': 'off',
+            'lowercase_urlencoding': True,
             'post_data': MultiDict([]),
             'script_name': '/',
             'server_port': 5000,
@@ -394,6 +395,7 @@ class TestSSO(TestCase):
             'get_data': MultiDict([]),
             'http_host': '127.0.0.1:5000',
             'https': 'on',
+            'lowercase_urlencoding': True,
             'post_data': MultiDict([]),
             'script_name': '/',
             'server_port': 5000,
@@ -410,12 +412,32 @@ class TestSSO(TestCase):
             'get_data': MultiDict([]),
             'http_host': '127.0.0.1:5000',
             'https': 'on',
+            'lowercase_urlencoding': True,
             'post_data': MultiDict([]),
             'script_name': '/',
             'server_port': 5000,
         }
 
         self.app.config['SAML_FORCE_HTTPS'] = True
+
+        with self.app.test_request_context():
+            actual_request = sso._prepare_flask_request(self.app.config)
+
+        self.assertEqual(expected_request, actual_request)
+
+    def test_prepare_flask_request_lowercase_urlencoding(self):
+        """Ensure the flask request urlencoding is based on config setting"""
+        expected_request = {
+            'get_data': MultiDict([]),
+            'http_host': '127.0.0.1:5000',
+            'https': 'off',
+            'lowercase_urlencoding': False,
+            'post_data': MultiDict([]),
+            'script_name': '/',
+            'server_port': 5000,
+        }
+
+        self.app.config['SAML_LOWERCASE_URLENCODING'] = False
 
         with self.app.test_request_context():
             actual_request = sso._prepare_flask_request(self.app.config)

@@ -60,6 +60,8 @@ def _get_saml_settings(app):
     requested_authn_context_comparison = config.setdefault(
         'SAML_REQUESTED_AUTHN_CONTEXT_COMPARISON', 'exact'
     )
+    strict = config.setdefault('SAML_STRICT', True)
+    debug = config.setdefault('SAML_DEBUG', False)
 
     if saml_idp_metadata_file:
         with open(saml_idp_metadata_file, 'r') as idp:
@@ -70,8 +72,8 @@ def _get_saml_settings(app):
         )
 
     s = {
-        "strict": True,
-        "debug": True,
+        "strict": strict,
+        "debug": debug,
         "sp": {
             "entityId": flask.url_for(
                 'sso.metadata', _external=True, _scheme='https' if force_https else None
@@ -131,6 +133,7 @@ def _prepare_flask_request(config):
     # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
     url_data = parse.urlparse(flask.request.url)
     force_https = config.setdefault('SAML_FORCE_HTTPS', False)
+    lowercase_urlencoding = config.setdefault('SAML_LOWERCASE_URLENCODING', True)
 
     https = 'on' if flask.request.scheme == 'https' or force_https else 'off'
     return {
@@ -139,6 +142,7 @@ def _prepare_flask_request(config):
         'server_port': url_data.port,
         'script_name': flask.request.path,
         'get_data': flask.request.args.copy(),
+        'lowercase_urlencoding': lowercase_urlencoding,
         'post_data': flask.request.form.copy(),
     }
 
