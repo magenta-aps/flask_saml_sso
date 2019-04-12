@@ -131,6 +131,7 @@ def _prepare_flask_request(config):
     # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
     url_data = parse.urlparse(flask.request.url)
     force_https = config.setdefault('SAML_FORCE_HTTPS', False)
+    lowercase_urlencoding = config.setdefault('SAML_LOWERCASE_URLENCODING', True)
 
     https = 'on' if flask.request.scheme == 'https' or force_https else 'off'
     return {
@@ -139,6 +140,7 @@ def _prepare_flask_request(config):
         'server_port': url_data.port,
         'script_name': flask.request.path,
         'get_data': flask.request.args.copy(),
+        'lowercase_urlencoding': lowercase_urlencoding,
         'post_data': flask.request.form.copy(),
     }
 
