@@ -60,6 +60,8 @@ def _get_saml_settings(app):
     requested_authn_context_comparison = config.setdefault(
         'SAML_REQUESTED_AUTHN_CONTEXT_COMPARISON', 'exact'
     )
+    strict = config.setdefault('SAML_STRICT', True)
+    debug = config.setdefault('SAML_DEBUG', False)
 
     if saml_idp_metadata_file:
         with open(saml_idp_metadata_file, 'r') as idp:
@@ -70,8 +72,8 @@ def _get_saml_settings(app):
         )
 
     s = {
-        "strict": True,
-        "debug": True,
+        "strict": strict,
+        "debug": debug,
         "sp": {
             "entityId": flask.url_for(
                 'sso.metadata', _external=True, _scheme='https' if force_https else None
