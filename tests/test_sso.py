@@ -34,6 +34,8 @@ class TestSSO(TestCase):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 
         flask_saml_sso.init_app(app)
+        flask_saml_sso.init_sessions_table(app)
+
         return app
 
     def tearDown(self):
