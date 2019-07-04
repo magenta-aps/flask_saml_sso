@@ -16,14 +16,36 @@ def init_app(app):
     if not enabled:
         return
 
+    _ensure_db_uri(app)
+
     app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
 
     app.session_interface = session.get_session_interface(app)
-    # Create the session database table, if it doesn't exist
+
+    app.register_blueprint(sso.blueprint)
+
+
+def init_sessions_table(app):
+    """
+    Create the relevant tables in the database if missing
+    """
+    _ensure_db_uri(app)
+
     with app.app_context():
         app.session_interface.db.create_all()
 
-    app.register_blueprint(sso.blueprint)
+
+def _ensure_db_uri(app):
+    """
+    Ensure the database URI is set, optionally creating it from individual config params
+    """
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}/{}".format(
+            app.config.get('SESSIONS_DB_USER', 'sessions'),
+            app.config.get('SESSIONS_DB_PASSWORD', 'sessions'),
+            app.config.get('SESSIONS_DB_HOST', 'localhost:5432'),
+            app.config.get('SESSIONS_DB_NAME', 'sessions'),
+        )
 
 
 def requires_auth(f):
