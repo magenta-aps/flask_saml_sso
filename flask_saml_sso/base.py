@@ -40,10 +40,11 @@ def _ensure_db_uri(app):
     Ensure the database URI is set, optionally creating it from individual config params
     """
     if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}/{}".format(
+        app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(
             app.config.get('SESSIONS_DB_USER', 'sessions'),
             app.config.get('SESSIONS_DB_PASSWORD', 'sessions'),
-            app.config.get('SESSIONS_DB_HOST', 'localhost:5432'),
+            app.config.get('SESSIONS_DB_HOST', 'localhost'),
+            app.config.get('SESSIONS_DB_PORT', '5432'),
             app.config.get('SESSIONS_DB_NAME', 'sessions'),
         )
 
