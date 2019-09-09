@@ -6,126 +6,31 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import contextlib
+import functools
+import logging
 import os
 from urllib import parse
 
 import flask
-import functools
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.constants import OneLogin_Saml2_Constants
-from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 from onelogin.saml2.response import OneLogin_Saml2_Response
+from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
 from werkzeug import exceptions
 
 from . import session
+from . import settings
+
+logger = logging.getLogger(__name__)
 
 basedir = os.path.dirname(__file__)
 
 blueprint = flask.Blueprint('sso', __name__, static_url_path='', url_prefix='/saml')
 
 
-def _get_logger():
-    return flask.current_app.logger.getChild('sso')
-
-
 def _build_error_response(message):
     return flask.jsonify(message), 401
-
-
-def _get_saml_settings(app):
-    """Generate the internal config file for OneLogin"""
-    logger = _get_logger()
-    config = app.config.copy()
-
-    insecure = config.setdefault('SAML_IDP_INSECURE', False)
-    force_https = config.setdefault('SAML_FORCE_HTTPS', False)
-    name_id_format = config.setdefault(
-        'SAML_NAME_ID_FORMAT', 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified'
-    )
-    cert_file = config.setdefault('SAML_CERT_FILE', None)
-    key_file = config.setdefault('SAML_KEY_FILE', None)
-    signature_algorithm = config.setdefault(
-        'SAML_SIGNATURE_ALGORITHM', 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
-    )
-    digest_algorithm = config.setdefault(
-        'SAML_DIGEST_ALGORITHM', 'http://www.w3.org/2001/04/xmlenc#sha256'
-    )
-    requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
-    want_name_id = config.setdefault('SAML_WANT_NAME_ID', True)
-    want_attribute_statement = config.setdefault('SAML_WANT_ATTRIBUTE_STATEMENT', False)
-    saml_idp_metadata_file = config.setdefault('SAML_IDP_METADATA_FILE', None)
-    saml_idp_metadata_url = config.setdefault('SAML_IDP_METADATA_URL', None)
-    requested_authn_context = config.setdefault('SAML_REQUESTED_AUTHN_CONTEXT', True)
-    requested_authn_context_comparison = config.setdefault(
-        'SAML_REQUESTED_AUTHN_CONTEXT_COMPARISON', 'exact'
-    )
-    strict = config.setdefault('SAML_STRICT', True)
-    debug = config.setdefault('SAML_DEBUG', False)
-
-    if saml_idp_metadata_file:
-        with open(saml_idp_metadata_file, 'r') as idp:
-            remote = OneLogin_Saml2_IdPMetadataParser.parse(idp.read())
-    else:
-        remote = OneLogin_Saml2_IdPMetadataParser.parse_remote(
-            saml_idp_metadata_url, validate_cert=not insecure
-        )
-
-    s = {
-        "strict": strict,
-        "debug": debug,
-        "sp": {
-            "entityId": flask.url_for(
-                'sso.metadata', _external=True, _scheme='https' if force_https else None
-            ),
-            "assertionConsumerService": {
-                "url": flask.url_for(
-                    'sso.acs', _external=True, _scheme='https' if force_https else None
-                ),
-                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
-            },
-            "singleLogoutService": {
-                "url": flask.url_for(
-                    'sso.sls', _external=True, _scheme='https' if force_https else None
-                ),
-                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-            },
-            "NameIDFormat": name_id_format,
-        },
-        "security": {
-            "authnRequestsSigned": requests_signed,
-            "logoutRequestSigned": requests_signed,
-            "signatureAlgorithm": signature_algorithm,
-            "digestAlgorithm": digest_algorithm,
-            "wantNameId": want_name_id,
-            "wantAttributeStatement": want_attribute_statement,
-            "requestedAuthnContext": requested_authn_context,
-            "requestedAuthnContextComparison": requested_authn_context_comparison,
-        },
-    }
-
-    s.setdefault('idp', {}).update(remote.get('idp'))
-
-    if requests_signed:
-        try:
-            with open(cert_file, 'r') as cf:
-                cert = cf.read()
-        except OSError:
-            logger.exception('Unable to read cert file {}'.format(cert_file))
-            raise
-
-        try:
-            with open(key_file, 'r') as kf:
-                key = kf.read()
-        except OSError:
-            logger.exception('Unable to read key file {}'.format(key_file))
-            raise
-
-        s['sp'].update({"x509cert": cert, "privateKey": key})
-
-    logger.debug('SAML Settings: \n{}'.format(s))
-
-    return s
 
 
 def _prepare_flask_request(config):
@@ -147,21 +52,38 @@ def _prepare_flask_request(config):
     }
 
 
-def _prepare_saml_auth(func):
-    """Decorator to create and initialize the OneLogin SAML2 Auth client"""
+def _create_saml_auth_decorator(func, key, idp_enabled):
+    """Factory for creating auth decorators"""
 
     @functools.wraps(func)
     def wrapper():
         app = flask.current_app
-        config = app.extensions.get('saml')
-        if not config:
-            config = _get_saml_settings(app)
-            app.extensions['saml'] = config
+        saml_app_extension = app.extensions.setdefault('saml', {})
+        saml_settings = saml_app_extension.get(key)
+        if not saml_settings:
+            settings_dict = settings.get_saml_settings(app, idp=idp_enabled)
+            saml_settings = OneLogin_Saml2_Settings(
+                settings_dict, sp_validation_only=not idp_enabled
+            )
+            saml_app_extension[key] = saml_settings
+            logger.debug('SAML Metadata Settings ({}): \n{}'.format(key, settings_dict))
+
         req = _prepare_flask_request(app.config)
-        auth = OneLogin_Saml2_Auth(req, config)
+        auth = OneLogin_Saml2_Auth(req, saml_settings)
         return func(auth)
 
     return wrapper
+
+
+def _prepare_metadata_auth(func):
+    """Decorator to create and initialize the OneLogin SAML2 Auth client without
+    IdP settings, for fetching metadata"""
+    return _create_saml_auth_decorator(func, 'metadata', idp_enabled=False)
+
+
+def _prepare_saml_auth(func):
+    """Decorator to create and initialize the OneLogin SAML2 Auth client"""
+    return _create_saml_auth_decorator(func, 'full', idp_enabled=True)
 
 
 @blueprint.route('/api-token/')
@@ -172,7 +94,6 @@ def api_token():
 
     If no user is currently logged in, redirect to SSO flow and return here
     """
-    logger = _get_logger()
     logger.debug('API-token called')
 
     if not flask.session.get(session.LOGGED_IN):
@@ -209,14 +130,13 @@ def api_token():
 
 
 @blueprint.route('/metadata/')
-@_prepare_saml_auth
+@_prepare_metadata_auth
 def metadata(auth):
     """
     SAML metadata endpoint
 
     Exposes XML configuration of the Service Provider
     """
-    logger = _get_logger()
     logger.debug('Metadata called')
 
     settings = auth.get_settings()
@@ -245,7 +165,6 @@ def sso(auth):
 
     Redirects user to IdP login page specified in metadata
     """
-    logger = _get_logger()
     logger.debug('SSO called')
 
     return_to = flask.request.args.get('next', flask.request.host_url)
@@ -266,7 +185,6 @@ def acs(auth):
 
     Called by IdP with SAML assertion when authentication has been performed
     """
-    logger = _get_logger()
     logger.debug('ACS called')
 
     with _allow_duplicate_attribute_names():
@@ -310,7 +228,6 @@ def slo(auth):
 
     Redirects user to IdP SLO specified in metadata
     """
-    logger = _get_logger()
     logger.debug('SLO called')
 
     name_id = flask.session.get(session.SAML_NAME_ID)
@@ -341,7 +258,6 @@ def sls(auth):
     Consumes LogoutResponse from IdP when logout has been performed, and
     sends user back to landing page
     """
-    logger = _get_logger()
     logger.debug('SLS called')
 
     # Process the SLO message received from IdP
