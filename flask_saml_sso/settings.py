@@ -18,21 +18,20 @@ def _get_saml_sp_settings(app):
     key_file = config.setdefault('SAML_KEY_FILE', None)
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
 
+    # If not forcing HTTPS, set to None, to make url_for handle it on its own
+    url_scheme = 'https' if force_https else None
+
     sp_settings = {
         "sp": {
             "entityId": flask.url_for(
-                'sso.metadata', _external=True, _scheme='https' if force_https else None
+                'sso.metadata', _external=True, _scheme=url_scheme
             ),
             "assertionConsumerService": {
-                "url": flask.url_for(
-                    'sso.acs', _external=True, _scheme='https' if force_https else None
-                ),
+                "url": flask.url_for('sso.acs', _external=True, _scheme=url_scheme),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
             },
             "singleLogoutService": {
-                "url": flask.url_for(
-                    'sso.sls', _external=True, _scheme='https' if force_https else None
-                ),
+                "url": flask.url_for('sso.sls', _external=True, _scheme=url_scheme),
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
             },
             "NameIDFormat": name_id_format,
