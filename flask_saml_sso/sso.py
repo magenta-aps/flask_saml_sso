@@ -22,7 +22,7 @@ from werkzeug import exceptions
 from . import session
 from . import settings
 
-logger = logging.getLogger('flask_saml_sso')
+logger = logging.getLogger(__name__)
 
 basedir = os.path.dirname(__file__)
 

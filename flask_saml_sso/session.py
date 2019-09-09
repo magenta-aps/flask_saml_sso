@@ -12,7 +12,7 @@ SAML_NAME_ID = 'samlNameId'
 SAML_ATTRIBUTES = 'samlAttributes'
 SAML_SESSION_TYPE = 'samlSessionType'
 
-logger = logging.getLogger('flask_saml_sso')
+logger = logging.getLogger(__name__)
 
 
 class SessionType(enum.Enum):

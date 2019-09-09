@@ -3,7 +3,7 @@ import logging
 import flask
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
-logger = logging.getLogger('flask_saml_sso')
+logger = logging.getLogger(__name__)
 
 
 def _get_saml_sp_settings(app):
