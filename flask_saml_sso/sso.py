@@ -58,15 +58,15 @@ def _create_saml_auth_decorator(func, key, idp_enabled):
     @functools.wraps(func)
     def wrapper():
         app = flask.current_app
-        saml_config = app.extensions.setdefault('saml', {})
-        saml_settings = saml_config.get(key)
+        saml_app_extension = app.extensions.setdefault('saml', {})
+        saml_settings = saml_app_extension.get(key)
         if not saml_settings:
-            config = settings.get_saml_settings(app, idp=idp_enabled)
+            settings_dict = settings.get_saml_settings(app, idp=idp_enabled)
             saml_settings = OneLogin_Saml2_Settings(
-                config, sp_validation_only=not idp_enabled
+                settings_dict, sp_validation_only=not idp_enabled
             )
-            saml_config[key] = saml_settings
-            logger.debug('SAML Metadata Settings ({}): \n{}'.format(key, config))
+            saml_app_extension[key] = saml_settings
+            logger.debug('SAML Metadata Settings ({}): \n{}'.format(key, settings_dict))
 
         req = _prepare_flask_request(app.config)
         auth = OneLogin_Saml2_Auth(req, saml_settings)
