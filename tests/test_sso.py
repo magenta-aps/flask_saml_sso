@@ -301,6 +301,19 @@ class TestSSO(TestCase):
         self.assertEqual(expected_metadata, actual_metadata)
         self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
 
+    @freezegun.freeze_time('2019-01-01')
+    def test_metadata_does_not_require_idp(self):
+        """Assert that we can fetch metadata without setting IdP"""
+        self.app.config['SAML_IDP_METADATA_FILE'] = None
+        self.app.config['SAML_IDP_METADATA_URL'] = None
+
+        r = self.client.get('/saml/metadata/')
+
+        expected_metadata = self.get_fixture('/sso/metadata.xml')
+        actual_metadata = str(r.data, 'utf-8')
+
+        self.assertEqual(expected_metadata, actual_metadata)
+
     @patch(
         'onelogin.saml2.settings.OneLogin_Saml2_Settings.validate_metadata',
         lambda *x, **y: ['ERROR 3', 'ERROR 4'],

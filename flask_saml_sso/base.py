@@ -1,7 +1,7 @@
 import functools
-import requests
 
 import flask
+import requests
 from werkzeug import exceptions
 
 from . import session
