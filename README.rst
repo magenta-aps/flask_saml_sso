@@ -1,8 +1,11 @@
 Flask SAML SSO
 ==============
 
-This package contains a Flask blueprint and session mechanisms for handling
-SAML single sign-on with a shared SQL session store.
+This package contains two major components:
+    * A SAML 2.0 SSO library for performing single sign-on and a Flask
+      blueprint for registering the relevant endpoints on a Flask application
+    * A connector for a SQL session store, allowing multiple applications
+      implementing this package to share the same security context
 
 Usage
 -----
@@ -76,7 +79,9 @@ Endpoint                    Description
 Configuration
 -------------
 
-The most relevant configuration settings are listed in the table below.
+Flask SAML SSO reads its configuration from the config on the Flask app passed
+to it during initialization. The configuration options supported are listed in
+the table below.
 
 +---------------------------------------------+-----------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Config key                                  | Default                                                   | Description                                                                                                                                                                   |
