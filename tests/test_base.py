@@ -6,32 +6,19 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import os
-from unittest.mock import MagicMock
 
 import flask
 import werkzeug
-from flask_testing import TestCase
+from unittest.mock import MagicMock
 from werkzeug.http import dump_cookie
 
 import flask_saml_sso
+from tests.util import TestCaseBase
 
 TESTS_DIR = os.path.dirname(__file__)
 
 
-class TestBase(TestCase):
-    def create_app(self):
-        app = flask.Flask(__name__)
-
-        app.config['SAML_AUTH_ENABLE'] = True
-        app.config['SAML_IDP_METADATA_FILE'] = TESTS_DIR + '/sso/idp.xml'
-        app.config['SERVER_NAME'] = "127.0.0.1:5000"
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-
-        flask_saml_sso.init_app(app)
-        flask_saml_sso.init_sessions_table(app)
-
-        return app
-
+class TestBase(TestCaseBase):
     def test_init_app_disabled(self):
         """Assert that we don't add blueprint and session interface if
         auth is disabled"""
