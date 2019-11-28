@@ -1,6 +1,5 @@
-import functools
-
 import flask
+import functools
 import requests
 from werkzeug import exceptions
 

@@ -27,7 +27,8 @@ setup(
         "Flask-Session>=0.3",
         "requests>=2.19",
         "Flask-SQLAlchemy>=2.3",
-        "itsdangerous>=1.1"
+        "itsdangerous>=1.1",
+        'mock>=3.0.5'
 
     ],
     tests_require=[
