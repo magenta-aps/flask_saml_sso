@@ -7,37 +7,22 @@
 #
 import base64
 import os
-from unittest.mock import patch
 from urllib.parse import urlparse, parse_qs, urlencode
 
 import flask
 import freezegun
-from flask_testing import TestCase
 from onelogin.saml2.utils import OneLogin_Saml2_Utils as saml_utils
+from unittest.mock import patch
 from werkzeug.datastructures import MultiDict
 
 import flask_saml_sso
 from flask_saml_sso import sso
+from tests.util import TestCaseBase
 
 TESTS_DIR = os.path.dirname(__file__)
 
 
-class TestSSO(TestCase):
-    maxDiff = None
-
-    def create_app(self):
-        app = flask.Flask(__name__)
-
-        app.config['SAML_AUTH_ENABLE'] = True
-        app.config['SAML_IDP_METADATA_FILE'] = TESTS_DIR + '/sso/idp.xml'
-        app.config['SERVER_NAME'] = "127.0.0.1:5000"
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-
-        flask_saml_sso.init_app(app)
-        flask_saml_sso.init_sessions_table(app)
-
-        return app
-
+class TestSSO(TestCaseBase):
     def tearDown(self):
         self.app.session_interface.db.drop_all()
 
