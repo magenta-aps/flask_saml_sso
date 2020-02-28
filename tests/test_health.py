@@ -42,7 +42,7 @@ class TestSessionHealth(TestCaseBase):
 
     def test_session_database_returns_false_if_sql_alchemy_error(self):
         app_mock = MagicMock()
-        app_mock.session_interface.sql_session_model.query.side_effect = (
+        app_mock.session_interface.sql_session_model.query.first.side_effect = (
             SQLAlchemyError()
         )
         actual = health.session_database(app_mock)
