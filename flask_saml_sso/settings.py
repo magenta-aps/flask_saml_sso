@@ -6,6 +6,10 @@ from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 logger = logging.getLogger(__name__)
 
 
+def _generate_url_for(schema: str, host: str, endpoint: str):
+    return "{}://{}{}".format(schema, host, flask.url_for(endpoint))
+
+
 def _get_saml_sp_settings(app):
     config = app.config.copy()
 
@@ -14,24 +18,33 @@ def _get_saml_sp_settings(app):
     )
     force_https = config.setdefault('SAML_FORCE_HTTPS', False)
 
+    sp_domain = config.setdefault('SAML_SP_DOMAIN', None)
+
     cert_file = config.setdefault('SAML_CERT_FILE', None)
     key_file = config.setdefault('SAML_KEY_FILE', None)
     requests_signed = config.setdefault('SAML_REQUESTS_SIGNED', False)
 
-    # If not forcing HTTPS, set to None, to make url_for handle it on its own
-    url_scheme = 'https' if force_https else None
+    if sp_domain:
+        url_scheme = 'https' if force_https else 'http'
+        entity_id = _generate_url_for(url_scheme, sp_domain, 'sso.metadata')
+        acs = _generate_url_for(url_scheme, sp_domain, 'sso.acs')
+        sls = _generate_url_for(url_scheme, sp_domain, 'sso.sls')
+    else:
+        # If not forcing HTTPS, set to None, to make url_for handle it on its own
+        url_scheme = 'https' if force_https else None
+        entity_id = flask.url_for('sso.metadata', _external=True, _scheme=url_scheme)
+        acs = flask.url_for('sso.acs', _external=True, _scheme=url_scheme)
+        sls = flask.url_for('sso.sls', _external=True, _scheme=url_scheme)
 
     sp_settings = {
         "sp": {
-            "entityId": flask.url_for(
-                'sso.metadata', _external=True, _scheme=url_scheme
-            ),
+            "entityId": entity_id,
             "assertionConsumerService": {
-                "url": flask.url_for('sso.acs', _external=True, _scheme=url_scheme),
+                "url": acs,
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
             },
             "singleLogoutService": {
-                "url": flask.url_for('sso.sls', _external=True, _scheme=url_scheme),
+                "url": sls,
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
             },
             "NameIDFormat": name_id_format,

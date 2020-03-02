@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                     validUntil="2019-01-03T00:00:00Z"
+                     cacheDuration="PT604800S"
+                     entityID="http://whatever.com/saml/metadata/">
+    <md:SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                                Location="http://whatever.com/saml/sls/" />
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
+        <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                                     Location="http://whatever.com/saml/acs/"
+                                     index="1" />
+    </md:SPSSODescriptor>
+
+
+</md:EntityDescriptor>
