@@ -1,9 +1,8 @@
 import logging
-
 from requests import RequestException
+from sqlalchemy.exc import SQLAlchemyError
 
 from flask_saml_sso import settings
-from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ def idp(app):
     """Verify whether the IdP can be reached"""
     try:
         settings.get_saml_settings(app)
-    except (ValueError, RequestException) as e:
+    except (ValueError, RequestException, OSError) as e:
         logger.exception("Auth IdP error: {}".format(e))
         return False
     return True
