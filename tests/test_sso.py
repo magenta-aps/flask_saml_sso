@@ -287,6 +287,18 @@ class TestSSO(TestCaseBase):
         self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
 
     @freezegun.freeze_time('2019-01-01')
+    def test_metadata_returns_metadata_sp_domain(self):
+        """Assert that metadata is generated correctly when sp_domain is set"""
+        self.app.config['SAML_SP_DOMAIN'] = 'whatever.com'
+        r = self.client.get('/saml/metadata/')
+
+        expected_metadata = self.get_fixture('/sso/metadata_sp_domain.xml')
+        actual_metadata = str(r.data, 'utf-8')
+
+        self.assertEqual(expected_metadata, actual_metadata)
+        self.assertIn(('Content-Type', 'text/xml'), list(r.headers))
+
+    @freezegun.freeze_time('2019-01-01')
     def test_metadata_does_not_require_idp(self):
         """Assert that we can fetch metadata without setting IdP"""
         self.app.config['SAML_IDP_METADATA_FILE'] = None

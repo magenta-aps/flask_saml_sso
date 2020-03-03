@@ -28,11 +28,11 @@ setup(
         "requests>=2.19",
         "Flask-SQLAlchemy>=2.3",
         "itsdangerous>=1.1",
-        'mock>=3.0.5'
-
+        'mock>=3.0.5',
     ],
     tests_require=[
         'Flask-Testing',
         'freezegun',
+        'werkzeug<1.0.0'
     ]
 )
