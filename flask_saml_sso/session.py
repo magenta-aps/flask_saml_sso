@@ -106,6 +106,7 @@ class SqlAlchemySessionInterfaceWithHeaders(sessions.SqlAlchemySessionInterface)
         """Delete all expired sessions from the database."""
         q = self.sql_session_model.expiry <= datetime.datetime.utcnow()
         self.sql_session_model.query.filter(q).delete()
+        self.db.session.commit()
 
     def open_session(self, app, request):  # pragma: no cover
         # BEGIN CHANGES: Updated to use cookies and headers
